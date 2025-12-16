@@ -1,8 +1,8 @@
-# Mioki
+# mioki
 
 A simple NapCat OneBot v11 framework.
 
-## Steps to Use Mioki
+## Steps to Use mioki
 
 ### 1. Deploy a NapCat Instance
 
