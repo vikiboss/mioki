@@ -74,11 +74,28 @@ export type Sendable = string | SendElement
 export type PostType = 'meta_event' | 'message' | 'message_sent' | 'notice' | 'request'
 export type MetaEventType = 'heartbeat' | 'lifecycle'
 export type MessageType = 'private' | 'group'
+export type NoticeType = 'friend' | 'group' | 'client'
+export type NoticeSubType =
+  | 'increase'
+  | 'decrease'
+  | 'recall'
+  | 'poke'
+  | 'like'
+  | 'input'
+  | 'admin'
+  | 'ban'
+  | 'title'
+  | 'card'
+  | 'upload'
+  | 'reaction'
+  | 'essence'
 
 export type EventBase<T extends PostType, U extends object> = U & { time: number; self_id: number; post_type: T }
 
-export type MetaEventBase<T extends MetaEventType, U extends object> = U &
-  EventBase<'meta_event', { meta_event_type: T }>
+export type MetaEventBase<T extends MetaEventType, U extends object> = EventBase<
+  'meta_event',
+  U & { meta_event_type: T }
+>
 
 export type HeartbeatMetaEvent = MetaEventBase<
   'heartbeat',
@@ -95,21 +112,20 @@ export type LifecycleMetaEvent = MetaEventBase<
 
 export type MetaEvent = HeartbeatMetaEvent | LifecycleMetaEvent
 
-type Reply = (sendable: Sendable | Sendable[], reply?: boolean) => Promise<{ message_id: string }>
+type Reply = (sendable: Sendable | Sendable[], reply?: boolean) => Promise<{ message_id: number }>
 
-export type MessageEventBase<T extends MessageType, U extends object> = U &
-  EventBase<
-    'message',
-    {
-      message_type: T
-      message_seq: number
-      real_id: number
-      real_seq: number
-      raw_message: string
-      message: RecvElement[]
-      reply: Reply
-    }
-  >
+export type MessageEventBase<T extends MessageType, U extends object> = EventBase<
+  'message',
+  U & {
+    message_type: T
+    message_seq: number
+    real_id: number
+    real_seq: number
+    raw_message: string
+    message: RecvElement[]
+    reply: Reply
+  }
+>
 
 export type PrivateMessageEvent = MessageEventBase<
   'private',
@@ -120,7 +136,7 @@ export type PrivateMessageEvent = MessageEventBase<
     friend: {
       user_id: number
       nickname: string
-      sendMsg: (sendable: Sendable | Sendable[]) => Promise<{ message_id: string }>
+      sendMsg: (sendable: Sendable | Sendable[]) => Promise<{ message_id: number }>
     }
     sender: {
       user_id: number
@@ -139,7 +155,7 @@ export type GroupMessageEvent = MessageEventBase<
     group: {
       group_id: number
       group_name: string
-      sendMsg: (sendable: Sendable | Sendable[]) => Promise<{ message_id: string }>
+      sendMsg: (sendable: Sendable | Sendable[]) => Promise<{ message_id: number }>
     }
     sender: {
       user_id: number
@@ -152,11 +168,260 @@ export type GroupMessageEvent = MessageEventBase<
 
 export type MessageEvent = PrivateMessageEvent | GroupMessageEvent
 
+type ToMessageSent<T extends MessageEvent> = Omit<T, 'post_type' | 'group' | 'friend' | 'reply'> & {
+  post_type: 'message_sent'
+}
+
+export type NoticeEventBase<T extends NoticeType, U extends object> = EventBase<
+  'notice',
+  U & {
+    notice_type: T
+    original_notice_type: string
+  }
+>
+
+export type GroupNoticeEventBase<T extends NoticeSubType, U extends object> = NoticeEventBase<
+  'group',
+  U & {
+    sub_type: T
+    group_id: number
+    user_id: number
+  }
+>
+
+export type FriendNoticeEventBase<T extends NoticeSubType, U extends object> = NoticeEventBase<
+  'friend',
+  U & {
+    sub_type: T
+    user_id: number
+  }
+>
+
+export type FriendIncreaseNoticeEvent = FriendNoticeEventBase<'increase', {}>
+export type FriendDecreaseNoticeEvent = FriendNoticeEventBase<'decrease', {}>
+export type FriendRecallNoticeEvent = FriendNoticeEventBase<'recall', { message_id: number }>
+export type FriendPokeNoticeEvent = FriendNoticeEventBase<
+  'poke',
+  {
+    target_id: number
+    sender_qq: number
+    raw_info: any[]
+  }
+>
+export type FriendLikeNoticeEvent = FriendNoticeEventBase<
+  'like',
+  {
+    operator_id: number
+    operator_nick: string
+    times: number
+  }
+>
+export type FriendInputNoticeEvent = FriendNoticeEventBase<
+  'input',
+  {
+    status_text: string
+    event_type: number
+  }
+>
+
+export type FriendNoticeEvent =
+  | FriendIncreaseNoticeEvent
+  | FriendDecreaseNoticeEvent
+  | FriendRecallNoticeEvent
+  | FriendPokeNoticeEvent
+  | FriendLikeNoticeEvent
+  | FriendInputNoticeEvent
+
+export type GroupIncreaseNoticeEvent = GroupNoticeEventBase<
+  'increase',
+  { operator_id: number; actions_type: 'invite' | 'add' | 'approve' }
+>
+export type GroupDecreaseNoticeEvent = GroupNoticeEventBase<
+  'decrease',
+  { operator_id: number; actions_type: 'kick' | 'leave' }
+>
+export type GroupAdminNoticeEvent = GroupNoticeEventBase<'admin', { action_type: 'set' | 'unset' }>
+export type GroupBanNoticeEvent = GroupNoticeEventBase<
+  'ban',
+  {
+    duration: number
+    action_type: 'ban' | 'lift_ban'
+    operator_id: number
+  }
+>
+export type GroupCardNoticeEvent = GroupNoticeEventBase<'card', { card_new: string; card_old: string }>
+export type GroupPokeNoticeEvent = GroupNoticeEventBase<'poke', { target_id: number; raw_info: any[] }>
+export type GroupTitleNoticeEvent = GroupNoticeEventBase<'title', { title: string }>
+export type GroupUploadNoticeEvent = GroupNoticeEventBase<
+  'upload',
+  {
+    file: {
+      id: string
+      name: string
+      size: number
+      busid: number
+    }
+  }
+>
+export type GroupReactionNoticeEvent = GroupNoticeEventBase<
+  'reaction',
+  {
+    message_id: number
+    likes: { emoji_id: string; count: number }[]
+    is_add: boolean
+  }
+>
+export type GroupEssenceNoticeEvent = GroupNoticeEventBase<
+  'essence',
+  {
+    sender_id: number
+    message_id: number
+    operator_id: number
+    action_type: 'add' | 'remove'
+  }
+>
+export type GroupRecallNoticeEvent = GroupNoticeEventBase<
+  'recall',
+  {
+    message_id: number
+    operator_id: number
+  }
+>
+
+export type GroupNoticeEvent =
+  | GroupIncreaseNoticeEvent
+  | GroupDecreaseNoticeEvent
+  | GroupBanNoticeEvent
+  | GroupCardNoticeEvent
+  | GroupPokeNoticeEvent
+  | GroupTitleNoticeEvent
+  | GroupUploadNoticeEvent
+  | GroupReactionNoticeEvent
+  | GroupEssenceNoticeEvent
+  | GroupRecallNoticeEvent
+
+export type NoticeEvent = GroupNoticeEvent | FriendNoticeEvent
+
+export type RequestEventBase<T extends string, U extends object> = EventBase<
+  'request',
+  U & { request_type: T; user_id: number; flag: string; comment: string }
+>
+export type FriendRequestEvent = RequestEventBase<'friend', {}>
+export type GroupAddRequestEvent = RequestEventBase<'group', { group_id: number; sub_type: 'add' }>
+export type GroupInviteRequestEvent = RequestEventBase<'group', { group_id: number; sub_type: 'invite' }>
+export type GroupRequestEvent = GroupAddRequestEvent | GroupInviteRequestEvent
+export type RequestEvent = FriendRequestEvent | GroupRequestEvent
+
+export interface OneBotEventMap {
+  /** 元事件，通常与 OneBot 服务端状态相关 */
+  meta_event: MetaEvent
+
+  /** 元事件 - 心跳事件，确认服务端在线状态 */
+  'meta_event.heartbeat': HeartbeatMetaEvent
+
+  /** 元事件 - 生命周期，服务端状态变化 */
+  'meta_event.lifecycle': LifecycleMetaEvent
+  /** 元事件 - 生命周期 - 连接成功 */
+  'meta_event.lifecycle.connect': LifecycleMetaEvent
+  // 'meta_event.lifecycle.disable': LifecycleMetaEvent
+  // 'meta_event.lifecycle.enable': LifecycleMetaEvent
+
+  /** 消息事件，包含私聊和群消息 */
+  message: MessageEvent
+
+  /** 消息事件 - 私聊消息 */
+  'message.private': PrivateMessageEvent
+  /** 消息事件 - 私聊消息 - 好友私聊 */
+  'message.private.friend': PrivateMessageEvent
+  /** 消息事件 - 私聊消息 - 群临时会话 */
+  'message.private.group': PrivateMessageEvent
+  // 'message.private.group_self': PrivateMessageEvent
+  // 'message.private.other': PrivateMessageEvent
+
+  /** 消息事件 - 群消息 */
+  'message.group': GroupMessageEvent
+  /** 消息事件 - 群消息 - 普通消息 */
+  'message.group.normal': GroupMessageEvent
+  // 'message.group.notice': GroupMessageEvent
+
+  message_sent: ToMessageSent<MessageEvent>
+
+  /* 发送消息事件 - 私聊消息 */
+  'message_sent.private': ToMessageSent<PrivateMessageEvent>
+  /* 发送消息事件 - 私聊消息 - 好友私聊 */
+  'message_sent.private.friend': ToMessageSent<PrivateMessageEvent>
+  /* 发送消息事件 - 私聊消息 - 群临时会话 */
+  'message_sent.private.group': ToMessageSent<PrivateMessageEvent>
+  // 'message_sent.private.group_self': MessageToMessageSent<PrivateMessageEvent>
+  // 'message_sent.private.other': MessageToMessageSent<PrivateMessageEvent>
+
+  /* 发送消息事件 - 群消息 */
+  'message_sent.group': ToMessageSent<GroupMessageEvent>
+  /* 发送消息事件 - 群消息 - 普通消息 */
+  'message_sent.group.normal': ToMessageSent<GroupMessageEvent>
+  // 'message.group.notice': MessageToMessageSent<GroupMessageEvent>
+
+  /** 请求事件 */
+  request: RequestEvent
+
+  /** 请求事件 - 好友请求 */
+  'request.friend': FriendRequestEvent
+
+  /** 请求事件 - 群请求 */
+  'request.group': GroupRequestEvent
+  /** 请求事件 - 他人加群请求，当机器人是群主或管理员时收到 */
+  'request.group.add': GroupAddRequestEvent
+  /** 请求事件 - 邀请加群请求，他人邀请机器人加入群时收到 */
+  'request.group.invite': GroupInviteRequestEvent
+
+  /** 通知事件 */
+  notice: NoticeEvent
+
+  /** 通知事件 - 好友相关通知 */
+  'notice.friend': FriendNoticeEvent
+  /** 通知事件 - 好友增加 */
+  'notice.friend.increase': FriendIncreaseNoticeEvent
+  /** 通知事件 - 好友减少 */
+  'notice.friend.decrease': FriendDecreaseNoticeEvent
+  /** 通知事件 - 好友备注变更 */
+  'notice.friend.recall': FriendRecallNoticeEvent
+  /** 通知事件 - 好友戳一戳 */
+  'notice.friend.poke': FriendPokeNoticeEvent
+  /** 通知事件 - 好友点赞 */
+  'notice.friend.like': FriendLikeNoticeEvent
+  /** 通知事件 - 好友输入状态 */
+  'notice.friend.input': FriendInputNoticeEvent
+
+  // 'notice.friend.offline_file': EventBase<'notice', any>
+  // 'notice.client.status': EventBase<'notice', any>
+
+  /** 通知事件 - 群相关通知 */
+  'notice.group': GroupNoticeEvent
+  /** 通知事件 - 群成员增加 */
+  'notice.group.increase': GroupIncreaseNoticeEvent
+  /** 通知事件 - 群成员减少 */
+  'notice.group.decrease': GroupDecreaseNoticeEvent
+  /** 通知事件 - 群管理员变更 */
+  'notice.group.admin': GroupAdminNoticeEvent
+  /** 通知事件 - 群成员被禁言 */
+  'notice.group.ban': GroupBanNoticeEvent
+  /** 通知事件 - 群戳一戳 */
+  'notice.group.poke': GroupPokeNoticeEvent
+  /** 通知事件 - 群头衔变更 */
+  'notice.group.title': GroupTitleNoticeEvent
+  /** 通知事件 - 群名片变更 */
+  'notice.group.card': GroupCardNoticeEvent
+  /** 通知事件 - 群公告变更 */
+  'notice.group.recall': GroupRecallNoticeEvent
+  /** 通知事件 - 群上传文件 */
+  'notice.group.upload': GroupUploadNoticeEvent
+  /** 通知事件 - 给群消息添加反应 Reaction */
+  'notice.group.reaction': GroupReactionNoticeEvent
+  /** 通知事件 - 群精华消息变更 */
+  'notice.group.essence': GroupEssenceNoticeEvent
+}
+
 export const NAPCAT_NOTICE_NOTIFY_MAP: Record<string, { notice_type: string; sub_type: string }> = {
-  poke: {
-    notice_type: 'friend',
-    sub_type: 'poke',
-  },
   input_status: {
     notice_type: 'friend',
     sub_type: 'input',
@@ -224,127 +489,4 @@ export const NAPCAT_NOTICE_EVENT_MAP: Record<string, { notice_type: string; sub_
     notice_type: 'group',
     sub_type: 'recall',
   },
-}
-
-type ToMessageSent<T extends MessageEvent> = Omit<T, 'post_type' | 'group' | 'friend' | 'reply'> & {
-  post_type: 'message_sent'
-}
-
-export interface OneBotEventMap {
-  /** 元事件，通常与 OneBot 服务端状态相关 */
-  meta_event: MetaEvent
-
-  /** 元事件 - 心跳事件，确认服务端在线状态 */
-  'meta_event.heartbeat': HeartbeatMetaEvent
-
-  /** 元事件 - 生命周期，服务端状态变化 */
-  'meta_event.lifecycle': LifecycleMetaEvent
-  /** 元事件 - 生命周期 - 连接成功 */
-  'meta_event.lifecycle.connect': LifecycleMetaEvent
-  // 'meta_event.lifecycle.disable': LifecycleMetaEvent
-  // 'meta_event.lifecycle.enable': LifecycleMetaEvent
-
-  /** 消息事件，包含私聊和群消息 */
-  message: MessageEvent
-
-  /** 消息事件 - 私聊消息 */
-  'message.private': PrivateMessageEvent
-  /** 消息事件 - 私聊消息 - 好友私聊 */
-  'message.private.friend': PrivateMessageEvent
-  /** 消息事件 - 私聊消息 - 群临时会话 */
-  'message.private.group': PrivateMessageEvent
-  // 'message.private.group_self': PrivateMessageEvent
-  // 'message.private.other': PrivateMessageEvent
-
-  /** 消息事件 - 群消息 */
-  'message.group': GroupMessageEvent
-  /** 消息事件 - 群消息 - 普通消息 */
-  'message.group.normal': GroupMessageEvent
-  // 'message.group.notice': GroupMessageEvent
-
-  message_sent: ToMessageSent<MessageEvent>
-
-  /* 发送消息事件 - 私聊消息 */
-  'message_sent.private': ToMessageSent<PrivateMessageEvent>
-  /* 发送消息事件 - 私聊消息 - 好友私聊 */
-  'message_sent.private.friend': ToMessageSent<PrivateMessageEvent>
-  /* 发送消息事件 - 私聊消息 - 群临时会话 */
-  'message_sent.private.group': ToMessageSent<PrivateMessageEvent>
-  // 'message_sent.private.group_self': MessageToMessageSent<PrivateMessageEvent>
-  // 'message_sent.private.other': MessageToMessageSent<PrivateMessageEvent>
-
-  /* 发送消息事件 - 群消息 */
-  'message_sent.group': ToMessageSent<GroupMessageEvent>
-  /* 发送消息事件 - 群消息 - 普通消息 */
-  'message_sent.group.normal': ToMessageSent<GroupMessageEvent>
-  // 'message.group.notice': MessageToMessageSent<GroupMessageEvent>
-
-  /** 请求事件 */
-  request: EventBase<'request', any>
-
-  /** 请求事件 - 好友请求 */
-  'request.friend': EventBase<'request', any>
-
-  /** 请求事件 - 群请求 */
-  'request.group': EventBase<'request', any>
-  /** 请求事件 - 他人加群请求，当机器人是群主或管理员时收到 */
-  'request.group.add': EventBase<'request', any>
-  /** 请求事件 - 邀请加群请求，他人邀请机器人加入群时收到 */
-  'request.group.invite': EventBase<'request', any>
-
-  /** 通知事件 */
-  notice: EventBase<'notice', any>
-
-  /** 通知事件 - 好友相关通知 */
-  'notice.friend': EventBase<'notice', any>
-  /** 通知事件 - 好友增加 */
-  'notice.friend.increase': EventBase<'notice', any>
-  /** 通知事件 - 好友减少 */
-  'notice.friend.decrease': EventBase<'notice', any>
-  /** 通知事件 - 好友备注变更 */
-  'notice.friend.recall': EventBase<'notice', any>
-  /** 通知事件 - 好友戳一戳 */
-  'notice.friend.poke': EventBase<'notice', any>
-  /** 通知事件 - 好友点赞 */
-  'notice.friend.like': EventBase<'notice', any>
-  /** 通知事件 - 好友输入状态 */
-  'notice.friend.input': EventBase<'notice', any>
-
-  // 'notice.friend.offline_file': EventBase<'notice', any>
-  // 'notice.client.status': EventBase<'notice', any>
-
-  /** 通知事件 - 群相关通知 */
-  'notice.group': EventBase<'notice', any>
-  /** 通知事件 - 群成员增加 */
-  'notice.group.increase': EventBase<'notice', any>
-  /** 通知事件 - 群成员减少 */
-  'notice.group.decrease': EventBase<'notice', any>
-  /** 通知事件 - 群管理员变更 */
-  'notice.group.admin': EventBase<'notice', any>
-  /** 通知事件 - 群成员被禁言 */
-  'notice.group.ban': EventBase<'notice', any>
-  /** 通知事件 - 群戳一戳 */
-  'notice.group.poke': EventBase<'notice', any>
-  /** 通知事件 - 群头衔变更 */
-  'notice.group.title': EventBase<'notice', any>
-  /** 通知事件 - 群名片变更 */
-  'notice.group.card': EventBase<
-    'notice',
-    {
-      notice_type: 'group'
-      sub_type: 'card'
-      group_id: number
-      user_id: number
-      card_new: string
-      card_old: string
-    }
-  >
-  /** 通知事件 - 群公告变更 */
-  'notice.group.recall': EventBase<'notice', any>
-  /** 通知事件 - 群上传文件 */
-  'notice.group.upload': EventBase<'notice', any>
-  /** 通知事件 - 给群消息添加反应 Reaction */
-  'notice.group.reaction': EventBase<'notice', any>
-  /** 通知事件 - 群精华消息变更 */
-  'notice.group.essence': EventBase<'notice', any>
 }

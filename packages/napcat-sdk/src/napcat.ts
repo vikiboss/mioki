@@ -221,8 +221,8 @@ export class NapCat {
           break
         }
 
-        case 'message_send': {
-          this.logger.trace(`received message_send: ${JSON.stringify(data)}`)
+        case 'message_sent': {
+          this.logger.trace(`received message_sent: ${JSON.stringify(data)}`)
           this.#event.emit('message_sent', data)
 
           if (data.message_type) {
@@ -244,13 +244,22 @@ export class NapCat {
           }
 
           const isNotify = data.notice_type === 'notify'
+          const isPoke = data.sub_type === 'poke'
 
           const { notice_type, sub_type } = isNotify
-            ? NAPCAT_NOTICE_NOTIFY_MAP[data.sub_type]
-            : NAPCAT_NOTICE_EVENT_MAP[data.notice_type]
+            ? isPoke
+              ? { notice_type: data.group_id ? 'group' : 'friend', sub_type: 'poke' }
+              : NAPCAT_NOTICE_NOTIFY_MAP[data.sub_type] || {}
+            : NAPCAT_NOTICE_EVENT_MAP[data.notice_type] || {}
 
-          data.notice_type = notice_type
-          data.sub_type = sub_type
+          data.original_notice_type = data.notice_type
+          data.notice_type = notice_type || data.notice_type
+
+          if (data.sub_type && data.sub_type !== sub_type) {
+            data.action_type = data.sub_type
+          }
+
+          data.sub_type = sub_type || data.sub_type
 
           this.#event.emit('notice', data)
 
