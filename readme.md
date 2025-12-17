@@ -22,8 +22,10 @@ docker run -d \
 
 > PS: The image is 500+ MB, so it may take some time to download.
 
-Visit http://localhost:6099， and navigate to "Network Settings" to add a new WebSocket server, using the `3001` port and `0.0.0.0` host. Make sure to enable it after adding.
+Visit http://localhost:6099, and navigate to "Network Settings" to add a new WebSocket server, using the `3001` port and `0.0.0.0` host. Make sure to enable it after adding.
 
 ![napcat-ws-config](./docs/napcat-ws-config.png)
 
 #### 2. WIP
+
+> To be continued...
