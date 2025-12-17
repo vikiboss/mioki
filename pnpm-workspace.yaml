@@ -5,3 +5,4 @@ catalogs:
   dev:
     tsdown: ^0.18.0
     typescript: ^5.9.3
+    '@types/node': ^24.11.1

@@ -1,6 +1,7 @@
 {
   "name": "mioki-root",
   "private": true,
+  "type": "module",
   "version": "0.0.0-snapshot.0",
   "packageManager": "pnpm@10.26.0",
   "description": "A simple OneBot v11 framework.",
@@ -12,7 +13,9 @@
   ],
   "scripts": {
     "dev": "pnpm -r run dev",
-    "build": "pnpm -r run build"
+    "build": "pnpm -r run build",
+    "release": "bumpp",
+    "publish:ci": "node ./scripts/publish-ci.ts"
   },
   "prettier": {
     "semi": false,
