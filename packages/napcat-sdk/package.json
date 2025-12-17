@@ -27,5 +27,8 @@
   "devDependencies": {
     "tsdown": "catalog:dev",
     "typescript": "catalog:dev"
+  },
+  "dependencies": {
+    "mitt": "^3.0.1"
   }
 }
