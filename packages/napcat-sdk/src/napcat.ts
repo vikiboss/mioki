@@ -5,6 +5,7 @@ import { CONSOLE_LOGGER, ABSTRACT_LOGGER } from './logger'
 import type { Emitter } from 'mitt'
 import type { EventMap, MiokiOptions, OptionalProps } from './types'
 import type { Logger } from './logger'
+import type { Sendable } from './onebot'
 
 export const name = pkg.name
 export const version = pkg.version
@@ -42,8 +43,8 @@ export class NapCat {
     return `${this.#config.protocol}://${this.#config.host}:${this.#config.port}?access_token=${this.#config.token}`
   }
 
-  once<T extends keyof EventMap>(type: NoInfer<T>, handler: (event: EventMap[T]) => void) {
-    const onceHandler = (event: EventMap[T]) => {
+  once<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
+    const onceHandler = (event: EventMap[NoInfer<T>]) => {
       handler(event)
       this.#mitt.off(type, onceHandler)
     }
@@ -52,12 +53,12 @@ export class NapCat {
     this.#mitt.on(type, onceHandler)
   }
 
-  on<T extends keyof EventMap>(type: NoInfer<T>, handler: (event: EventMap[T]) => void) {
+  on<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
     this.logger.debug(`registering: ${String(type)}`)
     this.#mitt.on(type, handler)
   }
 
-  off<T extends keyof EventMap>(type: NoInfer<T>, handler: (event: EventMap[T]) => void) {
+  off<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
     this.logger.debug(`unregistering: ${String(type)}`)
     this.#mitt.off(type, handler)
   }
@@ -79,27 +80,69 @@ export class NapCat {
           case 'meta_event': {
             this.logger.trace(`received meta_event: ${JSON.stringify(data)}`)
             this.#mitt.emit('meta_event', data)
+
             break
           }
+
           case 'message': {
             this.#mitt.emit('message', data)
 
             switch (data.message_type) {
               case 'private': {
                 this.logger.trace(`received private message: ${JSON.stringify(data)}`)
-                this.#mitt.emit('message.private', data)
+
+                this.#mitt.emit('message.private', {
+                  ...data,
+                  reply: async (sendable: Sendable | Sendable[]) => {
+                    ws.send(
+                      JSON.stringify({
+                        action: 'send_private_msg',
+                        params: {
+                          user_id: data.user_id,
+                          message: [sendable]
+                            .flat(2)
+                            .map((item) => (typeof item === 'string' ? { type: 'text', data: { text: item } } : item)),
+                        },
+                      }),
+                    )
+                    return { ok: true }
+                  },
+                })
+
                 break
               }
+
               case 'group': {
                 this.logger.trace(`received group message: ${JSON.stringify(data)}`)
-                this.#mitt.emit('message.group', data)
+
+                this.#mitt.emit('message.group', {
+                  ...data,
+                  reply: async (sendable: Sendable | Sendable[]) => {
+                    ws.send(
+                      JSON.stringify({
+                        action: 'send_group_msg',
+                        params: {
+                          group_id: data.group_id,
+                          message: [sendable]
+                            .flat(2)
+                            .map((item) => (typeof item === 'string' ? { type: 'text', data: { text: item } } : item)),
+                        },
+                      }),
+                    )
+                    return { ok: true }
+                  },
+                })
+
                 break
               }
+
               default: {
                 this.logger.debug(`received unknown message type: ${JSON.stringify(data)}`)
+
                 break
               }
             }
+
             break
           }
 
