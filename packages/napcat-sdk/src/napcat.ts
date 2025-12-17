@@ -3,17 +3,20 @@ import mitt from 'mitt'
 import pkg from '../package.json' with { type: 'json' }
 import { segment } from './segment'
 import { CONSOLE_LOGGER, ABSTRACT_LOGGER } from './logger'
+import { NAPCAT_NOTICE_EVENT_MAP, NAPCAT_NOTICE_NOTIFY_MAP } from './onebot'
 
 import type { Emitter } from 'mitt'
 import type { Logger } from './logger'
-import {
-  NAPCAT_NOTICE_EVENT_MAP,
-  NAPCAT_NOTICE_NOTIFY_MAP,
-  type API,
-  type NormalizedElementToSend,
-  type Sendable,
-} from './onebot'
 import type { EventMap, MiokiOptions, OptionalProps } from './types'
+import type {
+  API,
+  Friend,
+  Group,
+  GroupMessageEvent,
+  NormalizedElementToSend,
+  PrivateMessageEvent,
+  Sendable,
+} from './onebot'
 
 export const name = pkg.name
 export const version = pkg.version
@@ -124,6 +127,61 @@ export class NapCat {
     })
   }
 
+  #buildGroup(group_id: number, group_name: string = ''): Group {
+    return {
+      group_id,
+      group_name,
+      doSign: () => this.api('set_group_sign', { group_id }),
+      getMemberList: async () => this.api('get_group_member_list', { group_id }),
+      getMemberInfo: (user_id: number) => this.api('get_group_member_info', { group_id, user_id }),
+      setTitle: (title: string) => this.api('set_group_special_title', { group_id, title }),
+      setCard: (user_id: number, card: string) => this.api('set_group_card', { group_id, user_id, card }),
+      addEssence: (message_id: string) => this.api('set_essence_msg', { message_id }),
+      delEssence: (message_id: string) => this.api('delete_essence_msg', { message_id }),
+      recall: (message_id: number) => this.api('delete_msg', { message_id }),
+      banMember: (user_id: number, duration: number) => this.api('set_group_ban', { group_id, user_id, duration }),
+      sendMsg: (sendable: Sendable | Sendable[]) => this.sendGroupMsg(group_id, sendable),
+    }
+  }
+
+  #buildFriend(user_id: number, nickname: string = ''): Friend {
+    return {
+      user_id,
+      nickname,
+      delete: (block?: boolean, both?: boolean) =>
+        this.api('delete_friend', { user_id, temp_block: block, temp_both_del: both }),
+      sendMsg: (sendable: Sendable | Sendable[]) => this.sendPrivateMsg(user_id, sendable),
+    }
+  }
+
+  #buildPrivateMessageEvent(event: PrivateMessageEvent) {
+    return {
+      ...event,
+      message: (event.message || []).map((el: any) => ({ type: el.type, ...el.data })),
+      friend: this.#buildFriend(event.user_id, event.sender?.nickname || ''),
+      recall: () => this.api('delete_msg', { message_id: event.message_id }),
+      reply: (sendable: Sendable | Sendable[], reply = false) =>
+        this.sendPrivateMsg(event.user_id, this.#wrapReply(sendable, event.message_id, reply)),
+    }
+  }
+
+  #buildGroupMessageEvent(event: GroupMessageEvent) {
+    return {
+      ...event,
+      message: (event.message || []).map((el: any) => ({ type: el.type, ...el.data })),
+      group: this.#buildGroup(event.group_id, event.group?.group_name || ''),
+      recall: () => this.api('delete_msg', { message_id: event.message_id }),
+      addReaction: (id: string) =>
+        this.api('set_msg_emoji_like', { message_id: event.message_id, emoji_id: id, set: true }),
+      delReaction: (id: string) =>
+        this.api('set_msg_emoji_like', { message_id: event.message_id, emoji_id: id, set: false }),
+      addEssence: () => this.api('set_essence_msg', { message_id: event.message_id }),
+      delEssence: () => this.api('delete_essence_msg', { message_id: event.message_id }),
+      reply: (sendable: Sendable | Sendable[], reply = false) =>
+        this.sendGroupMsg(event.group_id, this.#wrapReply(sendable, event.message_id, reply)),
+    }
+  }
+
   #bindInternalEvents(data: any) {
     if (data.echo) {
       this.#echoEvent.emit(`echo#${data.echo}`, data)
@@ -147,67 +205,27 @@ export class NapCat {
         }
 
         case 'message': {
-          const mid = data.message_id
-
           if (data.message_type === 'private') {
-            data.friend = {
-              user_id: data.user_id,
-              nickname: data.sender?.nickname,
-              sendMsg: (sendable: Sendable | Sendable[]) => this.sendPrivateMsg(data.user_id, sendable),
-            }
+            data = this.#buildPrivateMessageEvent(data)
           } else {
-            data.group = {
-              group_id: data.group_id,
-              group_name: data.group_name,
-              sendMsg: (sendable: Sendable | Sendable[]) => this.sendGroupMsg(data.group_id, sendable),
-            }
+            data = this.#buildGroupMessageEvent(data)
           }
 
-          data.message = (data.message || []).map((el: any) => ({ type: el.type, ...el.data }))
-
-          this.#event.emit('message', {
-            ...data,
-            reply: (sendable: Sendable | Sendable[], reply = false) => {
-              const wrapped = this.#wrapReply(sendable, mid, reply)
-
-              switch (data.message_type) {
-                case 'private':
-                  return this.sendPrivateMsg(data.user_id, wrapped)
-                case 'group':
-                  return this.sendGroupMsg(data.group_id, wrapped)
-                default:
-                  throw new Error(`unsupported message_type: ${data.message_type}`)
-              }
-            },
-          })
+          this.#event.emit('message', data)
 
           switch (data.message_type) {
             case 'private': {
               this.logger.trace(`received private message: ${JSON.stringify(data)}`)
-
-              const event = {
-                ...data,
-                reply: (sendable: Sendable | Sendable[], reply = false) =>
-                  this.sendPrivateMsg(data.user_id, this.#wrapReply(sendable, mid, reply)),
-              }
-
-              this.#event.emit('message.private', event)
-              this.#event.emit(`message.private.${data.sub_type}`, event)
+              this.#event.emit('message.private', data)
+              this.#event.emit(`message.private.${data.sub_type}`, data)
 
               break
             }
 
             case 'group': {
               this.logger.trace(`received group message: ${JSON.stringify(data)}`)
-
-              const event = {
-                ...data,
-                reply: (sendable: Sendable | Sendable[], reply = false) =>
-                  this.sendGroupMsg(data.group_id, this.#wrapReply(sendable, mid, reply)),
-              }
-
-              this.#event.emit('message.group', event)
-              this.#event.emit(`message.group.${data.sub_type}`, event)
+              this.#event.emit('message.group', data)
+              this.#event.emit(`message.group.${data.sub_type}`, data)
 
               break
             }
@@ -246,10 +264,11 @@ export class NapCat {
 
           const isNotify = data.notice_type === 'notify'
           const isPoke = data.sub_type === 'poke'
+          const isGroup = !!data.group_id
 
           const { notice_type, sub_type } = isNotify
             ? isPoke
-              ? { notice_type: data.group_id ? 'group' : 'friend', sub_type: 'poke' }
+              ? { notice_type: isGroup ? 'group' : 'friend', sub_type: 'poke' }
               : NAPCAT_NOTICE_NOTIFY_MAP[data.sub_type] || {}
             : NAPCAT_NOTICE_EVENT_MAP[data.notice_type] || {}
 
@@ -261,6 +280,12 @@ export class NapCat {
           }
 
           data.sub_type = sub_type || data.sub_type
+
+          if (isGroup) {
+            data.group = this.#buildGroup(data.group_id, data.group_name || '')
+          } else {
+            data.friend = this.#buildFriend(data.user_id, data.nickname || '')
+          }
 
           this.#event.emit('notice', data)
 
@@ -276,6 +301,18 @@ export class NapCat {
 
         case 'request': {
           this.logger.trace(`received request: ${JSON.stringify(data)}`)
+
+          if (data.request_type === 'friend') {
+            data.reject = () => this.api('set_friend_request', { flag: data.flag, approve: false })
+            data.approve = () => this.api('set_friend_request', { flag: data.flag, approve: true })
+          }
+
+          if (data.request_type === 'group') {
+            data.reject = (reason?: string) =>
+              this.api('set_group_add_request', { flag: data.flag, approve: false, reason })
+            data.approve = () => this.api('set_group_add_request', { flag: data.flag, approve: true })
+          }
+
           this.#event.emit('request', data)
 
           if (data.request_type) {
@@ -297,6 +334,16 @@ export class NapCat {
 
       return
     }
+  }
+
+  async pickGroup(group_id: number): Promise<Group> {
+    const groupInfo = await this.api<{ group_name: string }>('get_group_info', { group_id })
+    return this.#buildGroup(group_id, groupInfo.group_name)
+  }
+
+  async pickFriend(user_id: number): Promise<Friend> {
+    const friendInfo = await this.api<{ nickname: string }>('get_stranger_info', { user_id, no_cache: true })
+    return this.#buildFriend(user_id, friendInfo.nickname)
   }
 
   /**
@@ -344,7 +391,7 @@ export class NapCat {
    * 发送私聊消息
    */
   sendPrivateMsg(user_id: number, sendable: Sendable | Sendable[]) {
-    return this.api('send_private_msg', {
+    return this.api<{ message_id: number }>('send_private_msg', {
       user_id,
       message: this.#normalizeSendable(sendable),
     })
@@ -354,7 +401,7 @@ export class NapCat {
    * 发送群消息
    */
   sendGroupMsg(group_id: number, sendable: Sendable | Sendable[]) {
-    return this.api('send_group_msg', {
+    return this.api<{ message_id: number }>('send_group_msg', {
       group_id,
       message: this.#normalizeSendable(sendable),
     })
