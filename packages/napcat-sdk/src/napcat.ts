@@ -1,11 +1,13 @@
+import crypto from 'node:crypto'
 import mitt from 'mitt'
 import pkg from '../package.json' with { type: 'json' }
+import { segment } from './segment'
 import { CONSOLE_LOGGER, ABSTRACT_LOGGER } from './logger'
 
 import type { Emitter } from 'mitt'
-import type { EventMap, MiokiOptions, OptionalProps } from './types'
 import type { Logger } from './logger'
 import type { Sendable } from './onebot'
+import type { EventMap, MiokiOptions, OptionalProps } from './types'
 
 export const name = pkg.name
 export const version = pkg.version
@@ -21,7 +23,8 @@ export const DEFAULT_NAPCAT_OPTIONS = {
 
 export class NapCat {
   #ws: WebSocket | null = null
-  #mitt: Emitter<EventMap & Record<string | symbol, unknown>> = mitt()
+  #event: Emitter<EventMap & Record<string | symbol, unknown>> = mitt()
+  #echoEvent: Emitter<Record<string, unknown>> = mitt()
 
   constructor(private readonly options: MiokiOptions) {}
 
@@ -39,28 +42,125 @@ export class NapCat {
     return this.#config.logger
   }
 
+  get segment(): typeof segment {
+    return segment
+  }
+
+  #echoId() {
+    return crypto.randomBytes(16).toString('hex')
+  }
+
   #buildWsUrl(): string {
     return `${this.#config.protocol}://${this.#config.host}:${this.#config.port}?access_token=${this.#config.token}`
+  }
+
+  #normalizeSendable(msg: Sendable | Sendable[]): Sendable[] {
+    return [msg].flat(2).map((item) => (typeof item === 'string' ? { type: 'text', data: { text: item } } : item))
+  }
+
+  async #waitForAction<T extends any>(prefix: string, echo: string) {
+    const key = `${prefix}#${echo}`
+
+    return new Promise<T>((resolve) => {
+      const handle = (data: any) => {
+        this.#echoEvent.off(key, handle)
+        resolve(data as T)
+      }
+
+      this.#echoEvent.on(key, handle)
+    })
   }
 
   once<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
     const onceHandler = (event: EventMap[NoInfer<T>]) => {
       handler(event)
-      this.#mitt.off(type, onceHandler)
+      this.#event.off(type, onceHandler)
     }
 
     this.logger.debug(`registering once: ${String(type)}`)
-    this.#mitt.on(type, onceHandler)
+    this.#event.on(type, onceHandler)
   }
 
   on<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
     this.logger.debug(`registering: ${String(type)}`)
-    this.#mitt.on(type, handler)
+    this.#event.on(type, handler)
   }
 
   off<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
     this.logger.debug(`unregistering: ${String(type)}`)
-    this.#mitt.off(type, handler)
+    this.#event.off(type, handler)
+  }
+
+  ensureWsConnection(ws: WebSocket | null): asserts ws is WebSocket {
+    if (!ws) {
+      this.logger.error('WebSocket is not connected.')
+      throw new Error('WebSocket is not connected.')
+    }
+
+    if (ws.readyState !== WebSocket.OPEN) {
+      this.logger.error('WebSocket is not open.')
+      throw new Error('WebSocket is not open.')
+    }
+  }
+
+  sendMsg<T extends Sendable | Sendable[]>(msg: T) {
+    this.ensureWsConnection(this.#ws)
+
+    this.logger.debug(`sending message: ${JSON.stringify(msg)}`)
+
+    const action = 'send_msg'
+    const echo = this.#echoId()
+
+    this.#ws.send(
+      JSON.stringify({
+        echo,
+        action,
+        params: { message: this.#normalizeSendable(msg) },
+      }),
+    )
+
+    return this.#waitForAction<any>(action, echo)
+  }
+
+  sendPrivateMsg<T extends Sendable | Sendable[]>(user_id: number, msg: T) {
+    this.ensureWsConnection(this.#ws)
+
+    this.logger.debug(`sending private message to ${user_id}: ${JSON.stringify(msg)}`)
+
+    const action = 'send_private_msg'
+    const echo = this.#echoId()
+
+    this.#ws.send(
+      JSON.stringify({
+        echo,
+        action,
+        params: { message: this.#normalizeSendable(msg) },
+      }),
+    )
+
+    return this.#waitForAction<any>(action, echo)
+  }
+
+  sendGroupMsg<T extends Sendable | Sendable[]>(group_id: number, msg: T) {
+    this.ensureWsConnection(this.#ws)
+
+    this.logger.debug(`sending group message to ${group_id}: ${JSON.stringify(msg)}`)
+
+    const action = 'send_group_msg'
+    const echo = this.#echoId()
+
+    this.#ws.send(
+      JSON.stringify({
+        echo,
+        action,
+        params: {
+          group_id,
+          params: { message: this.#normalizeSendable(msg) },
+        },
+      }),
+    )
+
+    return this.#waitForAction<any>(action, echo)
   }
 
   async bootstrap() {
@@ -74,39 +174,26 @@ export class NapCat {
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data) as any
 
-        this.#mitt.emit('ws.message', data)
+        this.#event.emit('ws.message', data)
 
         switch (data.post_type) {
           case 'meta_event': {
             this.logger.trace(`received meta_event: ${JSON.stringify(data)}`)
-            this.#mitt.emit('meta_event', data)
+            this.#event.emit('meta_event', data)
 
             break
           }
 
           case 'message': {
-            this.#mitt.emit('message', data)
+            this.#event.emit('message', data)
 
             switch (data.message_type) {
               case 'private': {
                 this.logger.trace(`received private message: ${JSON.stringify(data)}`)
 
-                this.#mitt.emit('message.private', {
+                this.#event.emit('message.private', {
                   ...data,
-                  reply: async (sendable: Sendable | Sendable[]) => {
-                    ws.send(
-                      JSON.stringify({
-                        action: 'send_private_msg',
-                        params: {
-                          user_id: data.user_id,
-                          message: [sendable]
-                            .flat(2)
-                            .map((item) => (typeof item === 'string' ? { type: 'text', data: { text: item } } : item)),
-                        },
-                      }),
-                    )
-                    return { ok: true }
-                  },
+                  reply: (sendable: Sendable | Sendable[]) => this.sendPrivateMsg(data.user_id, sendable),
                 })
 
                 break
@@ -115,22 +202,9 @@ export class NapCat {
               case 'group': {
                 this.logger.trace(`received group message: ${JSON.stringify(data)}`)
 
-                this.#mitt.emit('message.group', {
+                this.#event.emit('message.group', {
                   ...data,
-                  reply: async (sendable: Sendable | Sendable[]) => {
-                    ws.send(
-                      JSON.stringify({
-                        action: 'send_group_msg',
-                        params: {
-                          group_id: data.group_id,
-                          message: [sendable]
-                            .flat(2)
-                            .map((item) => (typeof item === 'string' ? { type: 'text', data: { text: item } } : item)),
-                        },
-                      }),
-                    )
-                    return { ok: true }
-                  },
+                  reply: (sendable: Sendable | Sendable[]) => this.sendGroupMsg(data.group_id, sendable),
                 })
 
                 break
@@ -148,7 +222,7 @@ export class NapCat {
 
           default: {
             this.logger.debug(`received: ${JSON.stringify(data)}`)
-            this.#mitt.emit(data.post_type, data)
+            this.#event.emit(data.post_type, data)
             return
           }
         }
@@ -156,18 +230,18 @@ export class NapCat {
 
       ws.onclose = () => {
         this.logger.info('closed')
-        this.#mitt.emit('ws.close')
+        this.#event.emit('ws.close')
       }
 
       ws.onerror = (error) => {
         this.logger.error(`error: ${error}`)
-        this.#mitt.emit('ws.error', error)
+        this.#event.emit('ws.error', error)
         reject(error)
       }
 
       ws.onopen = () => {
         this.logger.info('connected')
-        this.#mitt.emit('ws.open')
+        this.#event.emit('ws.open')
         resolve()
       }
 

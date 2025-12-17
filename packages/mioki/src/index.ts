@@ -1,5 +1,5 @@
-import { NapCat, segment } from 'napcat-sdk'
-import { MIOKI_LOGGER } from './logger.ts'
+import { NapCat } from 'napcat-sdk'
+import { MIOKI_LOGGER } from './logger'
 
 const napcat = new NapCat({
   logger: MIOKI_LOGGER,
@@ -9,7 +9,7 @@ const napcat = new NapCat({
 
 napcat.on('message.private', async (e) => {
   if (e.raw_message === 'hello') {
-    await e.reply(['Hello, Mioki!', segment.face(175)])
+    await e.reply(['Hello, Mioki!', napcat.segment.face(175)])
   }
 })
 

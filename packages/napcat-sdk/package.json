@@ -25,6 +25,7 @@
   "author": "Viki <hi@viki.moe> (https://github.com/vikiboss)",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^24.11.1",
     "tsdown": "catalog:dev",
     "typescript": "catalog:dev"
   },
