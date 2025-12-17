@@ -247,23 +247,27 @@ export class NapCat {
 
         case 'notice': {
           this.logger.trace(`received notice: ${JSON.stringify(data)}`)
+
+          if (!data.notice_type) {
+            this.logger.debug(`received unknown notice type: ${JSON.stringify(data)}`)
+            return
+          }
+
+          const isNotify = data.notice_type === 'notify'
+
+          const { notice_type, sub_type } = isNotify
+            ? NAPCAT_NOTICE_NOTIFY_MAP[data.sub_type]
+            : NAPCAT_NOTICE_EVENT_MAP[data.notice_type]
+
           this.#event.emit('notice', data)
 
-          if (data.notice_type) {
-            const isNotify = data.notice_type === 'notify'
+          data.notice_type = notice_type
+          data.sub_type = sub_type
 
-            const { notice_type, sub_type } = isNotify
-              ? NAPCAT_NOTICE_NOTIFY_MAP[data.sub_type]
-              : NAPCAT_NOTICE_EVENT_MAP[data.notice_type]
+          this.#event.emit(`notice.${notice_type}`, data)
 
-            data.notice_type = notice_type
-            data.sub_type = sub_type
-
-            this.#event.emit(`notice.${notice_type}`, data)
-
-            if (sub_type) {
-              this.#event.emit(`notice.${notice_type}.${sub_type}`, data)
-            }
+          if (sub_type) {
+            this.#event.emit(`notice.${notice_type}.${sub_type}`, data)
           }
 
           break
