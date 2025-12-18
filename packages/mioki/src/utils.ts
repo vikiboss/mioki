@@ -881,7 +881,7 @@ export async function getAuthCodeViaTicket(ticket: string, appid: number): Promi
 /**
  * 通过 Auth Code 获取 minico Token
  */
-export async function getMinicoTokenViaAuthCode(authCode: string, appid: number): Promise<string> {
+export async function getMinicoTokenViaAuthCode(authCode: string, appid: number): Promise<any> {
   const response = await fetch('https://minico.qq.com/minico/oauth20?uin=QQ%E5%AE%89%E5%85%A8%E4%B8%AD%E5%BF%83', {
     method: 'POST',
     headers: {
@@ -894,13 +894,13 @@ export async function getMinicoTokenViaAuthCode(authCode: string, appid: number)
     }),
   })
 
-  if (!response.ok) return ''
+  if (!response.ok) return {}
 
   const { retcode, data } = await response.json()
 
-  if (+retcode !== 0 || !data) return ''
+  if (+retcode !== 0 || !data) return {}
 
-  return data || ''
+  return data || {}
 }
 
 /**

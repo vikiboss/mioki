@@ -38,6 +38,10 @@ export class NapCat {
   #event: Emitter<EventMap & Record<string | symbol, unknown>> = mitt()
   /** Echo 事件发射器 */
   #echoEvent: Emitter<Record<string, unknown>> = mitt()
+  /** 机器人 ID */
+  #uin: number = 0
+  /** 机器人状态 */
+  #online: boolean = false
 
   constructor(private readonly options: MiokiOptions) {}
 
@@ -241,6 +245,12 @@ export class NapCat {
           if (data.meta_event_type) {
             this.#event.emit(`meta_event.${data.meta_event_type}`, data)
             if (data.sub_type) {
+              if (data.sub_type === 'connect') {
+                this.#uin = data.self_id
+                this.#online = true
+                this.#event.emit('mioki.online', { uin: this.#uin, ts: data.time * 1000 })
+              }
+
               this.#event.emit(`meta_event.${data.meta_event_type}.${data.sub_type}`, data)
             }
           }
@@ -381,15 +391,37 @@ export class NapCat {
   }
 
   /** 获取一个群的信息，可以用于发送群消息等操作 */
-  async pickGroup(group_id: number): Promise<GroupWithInfo> {
-    const groupInfo = await this.api<ReturnType<Group['getInfo']>>('get_group_info', { group_id })
-    return this.#buildGroup(group_id, groupInfo.group_name, groupInfo)
+  async pickGroup(group_id: number): Promise<GroupWithInfo | null> {
+    try {
+      const groupInfo = await this.api<ReturnType<Group['getInfo']>>('get_group_info', { group_id })
+      return this.#buildGroup(group_id, groupInfo.group_name, groupInfo)
+    } catch (err: any) {
+      this.logger.warn(`Error to pickGroup ${group_id}: ${err?.message || err}`)
+      return null
+    }
   }
 
   /** 获取一个好友的信息，可以用于发送私聊消息等操作 */
-  async pickFriend(user_id: number): Promise<FriendWithInfo> {
-    const friendInfo = await this.api<ReturnType<Friend['getInfo']>>('get_stranger_info', { user_id })
-    return this.#buildFriend(user_id, friendInfo.nickname, friendInfo)
+  async pickFriend(user_id: number): Promise<FriendWithInfo | null> {
+    try {
+      const friendInfo = await this.api<ReturnType<Friend['getInfo']>>('get_stranger_info', { user_id })
+      return this.#buildFriend(user_id, friendInfo.nickname, friendInfo)
+    } catch (err: any) {
+      this.logger.warn(`Error to pickFriend ${user_id}: ${err?.message || err}`)
+      return null
+    }
+  }
+
+  get uin(): number {
+    return this.#uin
+  }
+
+  async getBkn(): Promise<number> {
+    return 0
+  }
+
+  isOnline(): boolean {
+    return this.#ws?.readyState === WebSocket.OPEN && this.#online
   }
 
   /**
@@ -481,11 +513,13 @@ export class NapCat {
       }
 
       ws.onclose = () => {
+        this.#online = false
         this.logger.info('closed')
         this.#event.emit('ws.close')
       }
 
       ws.onerror = (error) => {
+        this.#online = false
         this.logger.error(`error: ${error}`)
         this.#event.emit('ws.error', error)
         reject(error)
