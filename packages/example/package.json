@@ -1,0 +1,8 @@
+{
+  "name": "bot",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mioki": "workspace:*"
+  }
+}

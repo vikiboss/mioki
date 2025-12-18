@@ -30,6 +30,12 @@ importers:
         specifier: ^3.7.4
         version: 3.7.4
 
+  packages/example:
+    dependencies:
+      mioki:
+        specifier: workspace:*
+        version: link:../mioki
+
   packages/mioki:
     dependencies:
       napcat-sdk:

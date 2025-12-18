@@ -1,6 +1,6 @@
-import { defineConfig } from 'tsdown'
+import { defineConfig, type UserConfig } from 'tsdown'
 
-export default defineConfig({
+const config: UserConfig = defineConfig({
   entry: ['./src/index.ts'],
   dts: true,
   sourcemap: true,
@@ -9,4 +9,7 @@ export default defineConfig({
   tsconfig: './tsconfig.json',
   format: ['cjs', 'esm'],
   failOnWarn: false,
+  cjsDefault: true,
 })
+
+export default config

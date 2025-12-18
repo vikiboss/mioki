@@ -1,1 +1,1 @@
-export function mioki(): void {}
+export function start(): void {}
