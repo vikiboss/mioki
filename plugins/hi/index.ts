@@ -7,15 +7,15 @@ export default definePlugin({
   description: 'A simple hi plugin',
   dependencies: [], // no extra dependencies
   async setup(ctx) {
-    console.log('plugin has been set up!')
+    ctx.bot.logger.info('plugin has been set up!')
 
-    console.log('bot:', ctx.bot.uin, ctx.bot.nickname)
+    ctx.bot.logger.info('bot:', ctx.bot.uin, ctx.bot.nickname)
 
     const info = await ctx.bot.api<{ user_id: number; nickname: string }>('get_login_info')
-    console.log('bot login info:', info)
+    ctx.bot.logger.info('bot login info:', info)
 
     ctx.handle('notice', async (e) => {
-      console.log('received a notice', JSON.stringify(e))
+      ctx.bot.logger.info('received a notice', JSON.stringify(e))
     })
 
     ctx.handle('message.group', async (e) => {
@@ -32,12 +32,12 @@ export default definePlugin({
     })
 
     ctx.cron('*/3 * * * * *', (ctx, task) => {
-      console.log(`cron task executed at ${task.date}`)
-      ctx.bot.sendPrivateMsg(ctx.botConfig.owners[0], 'hi from cron task!')
+      ctx.bot.logger.info(`cron task executed at ${task.date}`)
+      // ctx.bot.sendPrivateMsg(ctx.botConfig.owners[0], 'hi from cron task!')
     })
 
     return () => {
-      console.log('plugin has been cleaned up!')
+      ctx.bot.logger.info('plugin has been cleaned up!')
     }
   },
 })

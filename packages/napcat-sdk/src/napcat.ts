@@ -172,8 +172,10 @@ export class NapCat {
 
         if (data.retcode === 0) {
           resolve(data.data as T)
+        } else if (data.retcode === 1200) {
+          reject('API Error: 发送失败，请先添加对方为好友')
         } else {
-          reject(`Server Error: ${data.message}`)
+          reject(`API Error: ${data.message}`)
         }
       }
 

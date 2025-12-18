@@ -44,18 +44,24 @@ export async function start(options: StartOptions = {}): Promise<void> {
     let lastNoticeTime = 0
 
     process.on('uncaughtException', async (err: any) => {
-      napcat.logger.error('>>> uncaughtException, 出错了', err)
+      const msg = utils.stringifyError(err)
+      napcat.logger.error(`>>> uncaughtException, 出错了: ${msg}`)
       if (Date.now() - lastNoticeTime < 1_000) return
       lastNoticeTime = Date.now()
-      await actions.noticeMainOwner(napcat, `mioki 发生未捕获异常:\n\n${err?.message || '未知错误'}`)
+      await actions.noticeMainOwner(napcat, `mioki 发生未捕获异常:\n\n${msg}`).catch(() => {
+        napcat.logger.error('>>> 发送未捕获异常通知失败')
+      })
     })
 
     process.on('unhandledRejection', async (err: any) => {
-      napcat.logger.error('>>> unhandledRejection, 出错了', err)
+      const msg = utils.stringifyError(err)
+      napcat.logger.error(`>>> unhandledRejection, 出错了: ${msg}`)
       if (Date.now() - lastNoticeTime < 1_000) return
       lastNoticeTime = Date.now()
       const date = new Date().toLocaleString()
-      await actions.noticeMainOwner(napcat, `【${date}】\n\nmioki 发生未处理异常:\n\n${err?.message || '未知错误'}`)
+      await actions.noticeMainOwner(napcat, `【${date}】\n\nmioki 发生未处理异常:\n\n${msg}`).catch(() => {
+        napcat.logger.error('>>> 发送未处理异常通知失败')
+      })
     })
 
     ensurePluginDir()
@@ -127,15 +133,16 @@ export async function start(options: StartOptions = {}): Promise<void> {
             try {
               await enablePlugin(napcat, p, 'external')
             } catch (e) {
-              const err = utils.stringifyError(e)
-              failedEnablePlugins.push([p.name, err])
+              failedEnablePlugins.push([p.name, utils.stringifyError(e)])
             }
           }),
         )
       }
     } catch (e: any) {
       napcat.logger.error(e?.message)
-      actions.noticeMainOwner(napcat, e?.message)
+      await actions.noticeMainOwner(napcat, e?.message).catch(() => {
+        napcat.logger.error('>>> 发送插件启用失败通知失败')
+      })
     }
 
     const end = hrtime.bigint()
@@ -152,7 +159,9 @@ export async function start(options: StartOptions = {}): Promise<void> {
     )
 
     if (cfg.botConfig.online_push) {
-      await actions.noticeMainOwner(napcat, `✅ mioki v${version} 已就绪`)
+      await actions.noticeMainOwner(napcat, `✅ mioki v${version} 已就绪`).catch((err) => {
+        napcat.logger.error(`>>> 发送就绪通知失败: ${utils.stringifyError(err)}`)
+      })
     }
   })
 
