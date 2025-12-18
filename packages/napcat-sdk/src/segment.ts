@@ -1,5 +1,4 @@
-import type { ExtractByType } from './types'
-import type { SendElement } from './onebot'
+import type { ExtractByType, SendElement } from './types'
 
 function createSegment<T extends SendElement['type'], D>(type: T, data: D): SendElement {
   return { type, ...data } as SendElement

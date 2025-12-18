@@ -2,35 +2,34 @@ import crypto from 'node:crypto'
 import mitt from 'mitt'
 import pkg from '../package.json' with { type: 'json' }
 import { segment } from './segment'
-import { CONSOLE_LOGGER, ABSTRACT_LOGGER } from './logger'
-import { NAPCAT_NOTICE_EVENT_MAP, NAPCAT_NOTICE_NOTIFY_MAP } from './onebot'
+import { ABSTRACT_LOGGER } from './logger'
 
 import type { Emitter } from 'mitt'
 import type { Logger } from './logger'
-import type { EventMap, MiokiOptions, OptionalProps } from './types'
 import type {
   API,
+  EventMap,
   Friend,
   FriendWithInfo,
   Group,
   GroupMessageEvent,
   GroupWithInfo,
+  MiokiOptions,
   NormalizedElementToSend,
+  OptionalProps,
   PrivateMessageEvent,
   Sendable,
-} from './onebot'
+} from './types'
 
-export const name = pkg.name
-export const version = pkg.version
+export const name: string = pkg.name
+export const version: string = pkg.version
 
-export { CONSOLE_LOGGER, ABSTRACT_LOGGER, pkg as PKG }
-
-export const DEFAULT_NAPCAT_OPTIONS = {
+const DEFAULT_NAPCAT_OPTIONS: Required<OptionalProps<MiokiOptions>> = {
   protocol: 'ws',
   host: 'localhost',
   port: 3333,
   logger: ABSTRACT_LOGGER,
-} satisfies Required<OptionalProps<MiokiOptions>>
+}
 
 export class NapCat {
   /** WebSocket 实例 */
@@ -375,7 +374,7 @@ export class NapCat {
   /**
    * 注册一次性事件监听器
    */
-  once<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
+  once<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void): void {
     const onceHandler = (event: EventMap[NoInfer<T>]) => {
       handler(event)
       this.#event.off(type, onceHandler)
@@ -392,7 +391,7 @@ export class NapCat {
    *
    * 如果需要移除监听器，请调用 `off` 方法
    */
-  on<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
+  on<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void): void {
     this.logger.debug(`registering: ${String(type)}`)
     this.#event.on(type, handler)
   }
@@ -400,7 +399,7 @@ export class NapCat {
   /**
    * 移除事件监听器
    */
-  off<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void) {
+  off<T extends keyof EventMap>(type: T, handler: (event: EventMap[NoInfer<T>]) => void): void {
     this.logger.debug(`unregistering: ${String(type)}`)
     this.#event.off(type, handler)
   }
@@ -416,7 +415,7 @@ export class NapCat {
   /**
    * 发送私聊消息
    */
-  sendPrivateMsg(user_id: number, sendable: Sendable | Sendable[]) {
+  sendPrivateMsg(user_id: number, sendable: Sendable | Sendable[]): Promise<{ message_id: number }> {
     return this.api<{ message_id: number }>('send_private_msg', {
       user_id,
       message: this.#normalizeSendable(sendable),
@@ -426,7 +425,7 @@ export class NapCat {
   /**
    * 发送群消息
    */
-  sendGroupMsg(group_id: number, sendable: Sendable | Sendable[]) {
+  sendGroupMsg(group_id: number, sendable: Sendable | Sendable[]): Promise<{ message_id: number }> {
     return this.api<{ message_id: number }>('send_group_msg', {
       group_id,
       message: this.#normalizeSendable(sendable),
@@ -434,7 +433,7 @@ export class NapCat {
   }
 
   /** 启动 NapCat SDK 实例，建立 WebSocket 连接 */
-  async bootstrap() {
+  async run(): Promise<void> {
     const { logger: _, ...config } = this.#config
 
     this.logger.info(`bootstrap with config: ${JSON.stringify(config)}`)
@@ -484,7 +483,7 @@ export class NapCat {
   }
 
   /** 销毁 NapCat SDK 实例，关闭 WebSocket 连接 */
-  async destroy() {
+  close(): void {
     if (this.#ws) {
       this.logger.info('destroying NapCat SDK instance...')
       this.#ws.close()
@@ -494,4 +493,84 @@ export class NapCat {
       this.logger.warn('NapCat SDK instance is not initialized.')
     }
   }
+}
+
+// ==================== 通知事件映射 ====================
+
+/**
+ * NapCat 通知类型映射表（notify 类型）
+ * @description 将 NapCat 特有的通知类型映射到标准的 notice_type 和 sub_type
+ */
+const NAPCAT_NOTICE_NOTIFY_MAP: Record<string, { notice_type: string; sub_type: string }> = {
+  input_status: {
+    notice_type: 'friend',
+    sub_type: 'input',
+  },
+  profile_like: {
+    notice_type: 'friend',
+    sub_type: 'like',
+  },
+  title: {
+    notice_type: 'group',
+    sub_type: 'title',
+  },
+}
+
+/**
+ * NapCat 通知事件映射表（notice 类型）
+ * @description 将 NapCat 的原始通知事件类型映射到标准的 notice_type 和 sub_type
+ */
+const NAPCAT_NOTICE_EVENT_MAP: Record<string, { notice_type: string; sub_type: string }> = {
+  friend_add: {
+    notice_type: 'friend',
+    sub_type: 'increase',
+  },
+  friend_recall: {
+    notice_type: 'friend',
+    sub_type: 'recall',
+  },
+  offline_file: {
+    notice_type: 'friend',
+    sub_type: 'offline_file',
+  },
+  client_status: {
+    notice_type: 'client',
+    sub_type: 'status',
+  },
+  group_admin: {
+    notice_type: 'group',
+    sub_type: 'admin',
+  },
+  group_ban: {
+    notice_type: 'group',
+    sub_type: 'ban',
+  },
+  group_card: {
+    notice_type: 'group',
+    sub_type: 'card',
+  },
+  group_upload: {
+    notice_type: 'group',
+    sub_type: 'upload',
+  },
+  group_decrease: {
+    notice_type: 'group',
+    sub_type: 'decrease',
+  },
+  group_increase: {
+    notice_type: 'group',
+    sub_type: 'increase',
+  },
+  group_msg_emoji_like: {
+    notice_type: 'group',
+    sub_type: 'reaction',
+  },
+  essence: {
+    notice_type: 'group',
+    sub_type: 'essence',
+  },
+  group_recall: {
+    notice_type: 'group',
+    sub_type: 'recall',
+  },
 }

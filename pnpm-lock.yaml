@@ -23,6 +23,9 @@ importers:
       bumpp:
         specifier: ^10.3.2
         version: 10.3.2
+      napcat-sdk:
+        specifier: workspace:*
+        version: link:packages/napcat-sdk
       prettier:
         specifier: ^3.7.4
         version: 3.7.4

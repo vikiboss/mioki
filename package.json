@@ -26,6 +26,7 @@
   "author": "Viki <hi@viki.moe> (https://github.com/vikiboss)",
   "license": "MIT",
   "devDependencies": {
+    "napcat-sdk": "workspace:*",
     "bumpp": "^10.3.2",
     "prettier": "^3.7.4"
   }

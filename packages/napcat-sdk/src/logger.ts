@@ -2,26 +2,22 @@ export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
 
 export type Logger = Record<LogLevel, (...args: unknown[]) => void>
 
-const LOG_LEVELS: Record<LogLevel, number> = {
-  fatal: 0,
-  error: 1,
-  warn: 2,
-  info: 3,
-  debug: 4,
-  trace: 5,
+export const noop = (): void => {}
+
+export const ABSTRACT_LOGGER: Logger = {
+  fatal: noop,
+  error: noop,
+  warn: noop,
+  info: noop,
+  debug: noop,
+  trace: noop,
 }
 
-const LOG_LEVEL_KEYS = Object.keys(LOG_LEVELS) as LogLevel[]
-
-const noop = () => {}
-
-export const ABSTRACT_LOGGER: Logger = Object.fromEntries(LOG_LEVEL_KEYS.map((level) => [level, noop])) as Logger
-
-export const CONSOLE_LOGGER: Logger = Object.fromEntries(
-  LOG_LEVEL_KEYS.map((level) => [
-    level,
-    (...args: unknown[]) => {
-      console[level === 'fatal' ? 'error' : level === 'trace' ? 'debug' : level](...args)
-    },
-  ]),
-) as Logger
+export const CONSOLE_LOGGER: Logger = {
+  fatal: console.error.bind(console, '[FATAL]'),
+  error: console.error.bind(console, '[ERROR]'),
+  warn: console.warn.bind(console, '[WARN]'),
+  info: console.info.bind(console, '[INFO]'),
+  debug: console.debug.bind(console, '[DEBUG]'),
+  trace: console.trace.bind(console, '[TRACE]'),
+}

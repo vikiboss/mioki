@@ -6,6 +6,11 @@
     "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "isolatedDeclarations": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "resolveJsonModule": true
   }
 }
