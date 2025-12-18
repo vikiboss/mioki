@@ -2,6 +2,11 @@
 
 A simple NapCat OneBot v11 framework.
 
+This repo contains two main parts:
+
+- **mioki**: A lightweight framework to build NapCat bots with ease, see [packages/mioki](./packages/mioki) for more details.
+- **NapCat SDK for TypeScript**: A TypeScript SDK to interact with NapCat, see [packages/napcat-sdk](./packages/napcat-sdk) for more details.
+
 > [!CAUTION]
 > This project is still under active development. Use it at your own risk.
 
