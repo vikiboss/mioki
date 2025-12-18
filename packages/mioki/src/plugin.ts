@@ -51,6 +51,8 @@ export interface MiokiContext extends Services, Configs, Utils, RemoveBotParam<A
   bot: NapCat
   /** 消息构造器 */
   segment: NapCat['segment']
+  /** 通过域名获取 Cookies */
+  getCookie: NapCat['getCookie']
   /** 注册事件处理器 */
   handle: <EventName extends keyof EventMap>(eventName: EventName, handler: (event: EventMap[EventName]) => any) => void
   /** 注册定时任务 */
@@ -83,7 +85,7 @@ export const runtimePlugins: Map<
 
 const buildRemovedActions = (bot: NapCat) =>
   Object.fromEntries(
-    Object.entries(actionsExports).map(([k, v]) => [k, utilsExports.bindBot(bot, v as any)]),
+    Object.entries(actionsExports).map(([k, v]) => [k, bindBot(bot, v as any)]),
   ) as RemoveBotParam<Actions>
 
 export interface MiokiPlugin {
@@ -146,6 +148,7 @@ export async function enablePlugin(
     const context: MiokiContext = {
       bot,
       segment: bot.segment,
+      getCookie: bot.getCookie,
       ...utilsExports,
       ...configExports,
       ...buildRemovedActions(bot),

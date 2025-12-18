@@ -17,7 +17,6 @@ import type {
   Sendable,
   PrivateMessageEvent,
   RecvElement,
-  NapCat,
   RecvImageElement,
 } from 'napcat-sdk'
 
@@ -911,20 +910,6 @@ export async function getTerminalInput(inputTip = '请输入'): Promise<string> 
     }
     getInput()
   })
-}
-
-export type OmitBotParamFromFunc<Func extends (bot: NapCat, ...args: any[]) => any> = Func extends (
-  bot: NapCat,
-  ...args: infer A
-) => infer Return
-  ? (...args: A) => Return
-  : never
-
-export function bindBot<Params extends Array<any> = any[], Return = any>(
-  bot: NapCat,
-  func: (bot: NapCat, ...args: Params) => Return,
-): OmitBotParamFromFunc<(bot: NapCat, ...args: Params) => Return> {
-  return (...args: Params): Return => func(bot, ...args)
 }
 
 /**
