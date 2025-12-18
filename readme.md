@@ -2,19 +2,22 @@
 
 A simple NapCat OneBot v11 framework.
 
-This repo contains two main parts:
-
-- **mioki**: A lightweight framework to build NapCat bots with ease, see [packages/mioki](./packages/mioki) for more details.
-- **NapCat SDK for TypeScript**: A TypeScript SDK to interact with NapCat, see [packages/napcat-sdk](./packages/napcat-sdk) for more details.
-
 > [!CAUTION]
 > This project is still under active development. Use it at your own risk.
 
-## Usage of mioki
+This repo contains two packages:
 
-### 1. Deploy a NapCat Instance
+- [packages/mioki](./packages/mioki): A simple framework to build NapCat bots with ease.
+- [packages/napcat-sdk](./packages/napcat-sdk): A TypeScript SDK to interact with NapCat.
+
+
+## Prerequisites
+
+you should have [Node.js](https://nodejs.org/) (v18+) and [Docker](https://www.docker.com/) installed on your machine.
 
 It forwards port 3001 to 3333, mioki use `3333` as default port to connect NapCat WebSocket server.
+
+Run NapCat with Docker:
 
 ```bash
 docker run -d \
@@ -33,7 +36,9 @@ Visit http://localhost:6099, and navigate to "Network Settings" to add a new Web
 
 <img src="./docs/napcat-ws-config.png" title="napcat-websocket" alt="napcat-websocket" style="width: 300px; max-width: 300px; border-radius: 4px; border: none;" />
 
-### 2. Create a mioki Project
+## Usage of mioki
+
+### 1. Create a mioki Project
 
 ```bash
 mkdir bot && cd bot
@@ -41,7 +46,7 @@ npm init -y && npm install mioki
 echo "import('mioki').then(({ start }) => start())" > app.ts
 ```
 
-### 3. Configure mioki
+### 2. Configure mioki
 
 Update `package.json` to add `mioki` field to configure mioki options.
 
@@ -62,7 +67,7 @@ Update `package.json` to add `mioki` field to configure mioki options.
 }
 ```
 
-### 4. Run the Bot
+### 3. Run the Bot
 
 ```bash
 # or `bun app.ts`, `tsx app.ts`, etc.
@@ -70,6 +75,8 @@ node app.ts
 ```
 
 ## Usage of NapCat SDK for TypeScript
+
+If you want to use NapCat SDK directly in your TypeScript projects, you can follow the instructions below.
 
 ### Getting Started
 
