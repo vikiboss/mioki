@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { dayjs, isNumber, unique } from './utils'
 
+import type { LogLevel } from 'napcat-sdk'
+
 /**
  * mioki 配置
  */
@@ -11,7 +13,7 @@ export interface MiokiConfig {
   admins: number[]
   plugins: string[]
   online_push?: boolean
-  log_level?: string
+  log_level?: LogLevel
   plugins_dir?: string
   napcat: {
     protocol?: 'ws' | 'wss'

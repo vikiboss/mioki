@@ -37,9 +37,8 @@ export async function start(options: StartOptions = {}): Promise<void> {
     logger,
   })
 
-  napcat.on('napcat.connected', async ({ uin }) => {
-    logger.info(`>>> 已连接到 NapCat 服务器`)
-    logger.info(`>>> 当前登录 QQ 账号: ${uin}`)
+  napcat.on('napcat.connected', async ({ user_id, nickname }) => {
+    logger.info(`>>> 已连接到 NapCat: ${nickname} (${user_id})`)
 
     let lastNoticeTime = 0
 

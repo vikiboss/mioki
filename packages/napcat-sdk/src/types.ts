@@ -33,7 +33,11 @@ export interface EventMap extends OneBotEventMap {
   'ws.message': any
 
   /** NapCat 连接已建立 */
-  'napcat.connected': { uin: number; ts: number }
+  'napcat.connected': {
+    user_id: number
+    nickname: string
+    ts: number
+  }
 }
 
 /**

@@ -286,10 +286,15 @@ export class NapCat {
               if (data.sub_type === 'connect') {
                 this.#uin = data.self_id
                 this.#online = true
-                this.#event.emit('napcat.connected', { uin: this.#uin, ts: data.time * 1000 })
 
                 this.getLoginInfo().then((info) => {
                   this.#nickname = info.nickname
+
+                  this.#event.emit('napcat.connected', {
+                    user_id: this.#uin,
+                    nickname: this.#nickname,
+                    ts: data.time * 1000,
+                  })
                 })
               }
 

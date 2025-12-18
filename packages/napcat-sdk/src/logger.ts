@@ -1,11 +1,10 @@
-export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace'
 
 export type Logger = Record<LogLevel, (...args: unknown[]) => void>
 
 export const noop = (): void => {}
 
 export const ABSTRACT_LOGGER: Logger = {
-  fatal: noop,
   error: noop,
   warn: noop,
   info: noop,
@@ -14,7 +13,6 @@ export const ABSTRACT_LOGGER: Logger = {
 }
 
 export const CONSOLE_LOGGER: Logger = {
-  fatal: console.error.bind(console, '[FATAL]'),
   error: console.error.bind(console, '[ERROR]'),
   warn: console.warn.bind(console, '[WARN]'),
   info: console.info.bind(console, '[INFO]'),

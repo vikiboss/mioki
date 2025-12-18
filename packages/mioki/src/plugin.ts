@@ -10,6 +10,7 @@ import * as servicesExports from './services'
 
 import type { EventMap, NapCat } from 'napcat-sdk'
 import type { ScheduledTask, TaskContext } from 'node-cron'
+import type { ConsolaInstance } from 'consola/core'
 
 type Num = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
@@ -59,6 +60,8 @@ export interface MiokiContext extends Services, Configs, Utils, RemoveBotParam<A
   cron: (cronExpression: string, handler: (ctx: MiokiContext, task: TaskContext) => any) => ScheduledTask
   /** 待清理的函数集合，在插件卸载时会被调用 */
   clears: Set<(() => any) | null | undefined>
+  /** 日志器 */
+  logger: ConsolaInstance
 }
 
 export const runtimePlugins: Map<
@@ -152,6 +155,10 @@ export async function enablePlugin(
       ...utilsExports,
       ...configExports,
       ...buildRemovedActions(bot),
+      logger: (bot.logger as ConsolaInstance).withDefaults({
+        tag: `plugin:${name}`,
+        args: [name],
+      }),
       services: servicesExports.services,
       clears: userClears,
       addService: (name: string, service: any, cover?: boolean) => {

@@ -7,21 +7,21 @@ export default definePlugin({
   description: 'A simple hi plugin', // optional
   dependencies: [], // no extra dependencies, optional, default is []
   async setup(ctx) {
-    ctx.bot.logger.info('plugin has been set up!')
+    ctx.logger.info('plugin has been set up!')
 
-    ctx.bot.logger.info(`bot: ${ctx.bot.uin}, ${ctx.bot.nickname}`)
+    ctx.logger.info(`bot: ${ctx.bot.uin}, ${ctx.bot.nickname}`)
 
     const info = await ctx.bot.api<{ user_id: number; nickname: string }>('get_login_info')
-    ctx.bot.logger.info(`bot login info: user_id=${info.user_id}, nickname=${info.nickname}`)
+    ctx.logger.info(`bot login info: user_id=${info.user_id}, nickname=${info.nickname}`)
 
     ctx.handle('notice', async (e) => {
-      ctx.bot.logger.info(`received a notice: ${JSON.stringify(e)}`)
+      ctx.logger.info(`received a notice: ${JSON.stringify(e)}`)
     })
 
     ctx.handle('request.friend', async (e) => {
-      ctx.bot.logger.info('收到好友请求：', e.user_id)
+      ctx.logger.info('收到好友请求：', e.user_id)
       await e.approve()
-      ctx.bot.logger.info('已自动通过好友请求')
+      ctx.logger.info('已自动通过好友请求')
     })
 
     ctx.handle('message.group', async (e) => {
@@ -38,12 +38,12 @@ export default definePlugin({
     })
 
     ctx.cron('*/3 * * * * *', (ctx, task) => {
-      ctx.bot.logger.info(`cron task executed at ${task.date}`)
+      ctx.logger.info(`cron task executed at ${task.date}`)
       // ctx.bot.sendPrivateMsg(ctx.botConfig.owners[0], 'hi from cron task!')
     })
 
     return () => {
-      ctx.bot.logger.info('plugin has been cleaned up!')
+      ctx.logger.info('plugin has been cleaned up!')
     }
   },
 })
