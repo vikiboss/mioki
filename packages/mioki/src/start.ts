@@ -28,7 +28,9 @@ export async function start(options: StartOptions = {}): Promise<void> {
   const logger = getMiokiLogger(cfg.botConfig.log_level || 'info')
   const plugin_dir = getAbsPluginDir()
 
-  logger.info(`>>> mioki v${version} 启动中，工作目录: ${cfg.BOT_CWD.value}，插件目录: ${plugin_dir}`)
+  logger.info(`>>> mioki v${version} 启动中`)
+  logger.info(`>>> 工作目录: ${cfg.BOT_CWD.value}`)
+  logger.info(`>>> 插件目录: ${plugin_dir}`)
 
   const napcat = new NapCat({
     ...cfg.botConfig.napcat,
@@ -36,7 +38,8 @@ export async function start(options: StartOptions = {}): Promise<void> {
   })
 
   napcat.on('napcat.connected', async ({ uin }) => {
-    logger.info(`>>> 已连接到 NapCat 服务器，当前登录 QQ 账号: ${uin}`)
+    logger.info(`>>> 已连接到 NapCat 服务器`)
+    logger.info(`>>> 当前登录 QQ 账号: ${uin}`)
 
     let lastNoticeTime = 0
 
@@ -118,9 +121,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
       await Promise.all(BUILTIN_PLUGINS.map((p) => enablePlugin(napcat, p, 'builtin')))
 
       // 按优先级分组并行加载用户插件，相同优先级的插件可以并行加载
-      for (const [priority, plugins] of sortedGroups) {
-        napcat.logger.info(`>>> 加载优先级 ${priority} 的插件: ${plugins.map((p) => p.name).join(', ')}`)
-
+      for (const [_, plugins] of sortedGroups) {
         await Promise.all(
           plugins.map(async (p) => {
             try {

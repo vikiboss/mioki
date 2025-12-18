@@ -31,8 +31,8 @@ export default definePlugin({
       // const { uin, pskey, skey, bkn, gtk, cookie } = await ctx.getCookie('qzone.qq.com')
     })
 
-    ctx.cron('*/3 * * * * *', (ctx, now) => {
-      console.log(`cron task executed at ${now}`)
+    ctx.cron('*/3 * * * * *', (ctx, task) => {
+      console.log(`cron task executed at ${task.date}`)
       ctx.bot.sendPrivateMsg(ctx.botConfig.owners[0], 'hi from cron task!')
     })
 

@@ -621,7 +621,7 @@ export class NapCat {
   async run(): Promise<void> {
     const { logger: _, token: __, ...config } = this.#config
 
-    this.logger.info(`run with config: ${JSON.stringify(config)}`)
+    this.logger.debug(`run with config: ${JSON.stringify(config)}`)
 
     return new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(this.#buildWsUrl())
@@ -658,7 +658,7 @@ export class NapCat {
       }
 
       ws.onopen = () => {
-        this.logger.info('NapCat connected')
+        this.logger.debug('NapCat connected')
         this.#event.emit('ws.open')
         resolve()
       }

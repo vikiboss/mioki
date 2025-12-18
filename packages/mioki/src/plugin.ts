@@ -189,7 +189,7 @@ export async function enablePlugin(
           await Promise.all([...clears, ...userClears].map((fn) => fn?.()))
           runtimePlugins.delete(name)
         } catch (err: any) {
-          throw new Error(`禁用插件 [${typeDesc}]${name}@${version} 失败: ${err?.message}`)
+          throw new Error(`>>> 禁用插件 [${typeDesc}]${name}@${version} 失败: ${err?.message}`)
         }
       },
     })
@@ -197,9 +197,9 @@ export async function enablePlugin(
     const end = hrtime.bigint()
     const time = Math.round(Number(end - start)) / 1_000_000
 
-    bot.logger.info(`启用插件 [${typeDesc}]${name}@${version} => 耗时 ${time} ms`)
+    bot.logger.info(`>>> 启用插件 [${typeDesc}]${name}@${version} => 耗时 ${time} ms`)
   } catch (e: any) {
-    throw new Error(`启用插件 [${typeDesc}]${name}@${version} 失败: ${e?.message}`)
+    throw new Error(`>>> 启用插件 [${typeDesc}]${name}@${version} 失败: ${e?.message}`)
   }
 
   return plugin
