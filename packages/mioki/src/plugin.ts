@@ -126,9 +126,9 @@ export function ensurePluginDir(): void {
 /**
  * 获取插件目录的绝对路径
  */
-export function getAbsPluginDir(defaultDir: string = 'plugin'): string {
+export function getAbsPluginDir(defaultDir: string = 'plugins'): string {
   const cwd = configExports.BOT_CWD.value
-  return path.resolve(cwd, configExports.botConfig.plugin_dir || defaultDir)
+  return path.join(cwd, configExports.botConfig.plugins_dir || defaultDir)
 }
 
 export async function enablePlugin(

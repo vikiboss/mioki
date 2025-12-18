@@ -15,9 +15,11 @@
       536596616
     ],
     "admins": [],
-    "plugins": [],
-    "online_push": true,
+    "plugins": [
+      "hi"
+    ],
     "plugins_dir": "../plugins",
+    "online_push": true,
     "napcat": {
       "protocol": "ws",
       "port": 3333,
