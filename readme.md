@@ -58,6 +58,7 @@ Update `package.json` to add `mioki` field to configure mioki options.
     "owners": [114514],
     "admins": [],
     "plugins": [],
+    "log_level": "info",
     "online_push": true,
     "napcat": {
       "protocol": "ws",

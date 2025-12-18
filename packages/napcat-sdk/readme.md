@@ -1,5 +1,7 @@
 # NapCat SDK for TypeScript
 
+> More details see [GitHub](https://github.com/vikiboss/mioki)
+
 ## Getting Started
 
 The NapCat SDK for TypeScript allows developers to easily integrate NapCat's functionalities into their TypeScript applications. This SDK provides a set of tools and utilities to interact with NapCat services seamlessly.
