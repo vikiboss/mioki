@@ -9,7 +9,7 @@ export default definePlugin({
   async setup(ctx) {
     ctx.bot.logger.info('plugin has been set up!')
 
-    ctx.bot.logger.info('bot:', ctx.bot.uin, ctx.bot.nickname)
+    ctx.bot.logger.info(`bot: ${ctx.bot.uin}, ${ctx.bot.nickname}`)
 
     const info = await ctx.bot.api<{ user_id: number; nickname: string }>('get_login_info')
     ctx.bot.logger.info(`bot login info: user_id=${info.user_id}, nickname=${info.nickname}`)
