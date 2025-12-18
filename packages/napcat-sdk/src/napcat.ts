@@ -147,6 +147,7 @@ export class NapCat {
       ...extraInfo,
       group_id,
       group_name,
+      napcat: this,
       doSign: () => this.api('set_group_sign', { group_id }),
       getInfo: () => this.api('get_group_info', { group_id }),
       getMemberList: async () => this.api('get_group_member_list', { group_id }),
@@ -167,6 +168,7 @@ export class NapCat {
       ...extraInfo,
       user_id,
       nickname,
+      napcat: this,
       delete: (block?: boolean, both?: boolean) =>
         this.api('delete_friend', { user_id, temp_block: block, temp_both_del: both }),
       sendMsg: (sendable: Sendable | Sendable[]) => this.sendPrivateMsg(user_id, sendable),

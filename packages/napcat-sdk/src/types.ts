@@ -1,4 +1,5 @@
 import type { Logger } from './logger'
+import type { NapCat } from './napcat'
 
 export interface MiokiOptions {
   /** NapCat 访问令牌 */
@@ -528,6 +529,8 @@ export interface Group {
   group_id: number
   /** 群名称 */
   group_name: string
+  /** NapCat 实例 */
+  napcat: NapCat
   /** 群签到 */
   doSign: () => Promise<string>
   /** 获取群信息 */
@@ -570,6 +573,8 @@ export interface Friend {
   user_id: number
   /** 好友昵称 */
   nickname: string
+  /** NapCat 实例 */
+  napcat: NapCat
   /** 发送私聊消息 */
   sendMsg: SendMsg
   /** 删除好友 */
