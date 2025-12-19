@@ -2,7 +2,7 @@
   "name": "mioki-root",
   "private": true,
   "type": "module",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "packageManager": "pnpm@10.26.0",
   "description": "A simple OneBot v11 framework.",
   "keywords": [
