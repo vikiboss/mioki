@@ -25,8 +25,8 @@ export interface MiokiStatus {
   bot: {
     uin: number
     nickname: string
-    // friends: number
-    // groups: number
+    friends: number
+    groups: number
     // guilds: number
   }
   plugins: {
@@ -34,11 +34,9 @@ export interface MiokiStatus {
     total: number
   }
   stats: {
-    // received: number
-    // sent: number
-    // lost: number
-    // rate: number
     uptime: number
+    send: number
+    receive: number
   }
   // platform: {
   //   name: string
@@ -84,10 +82,12 @@ export async function getMiokiStatus(bot: NapCat): Promise<MiokiStatus> {
   const isInUnix = ['Linux', 'Darwin'].includes(osType)
   const arch = ArchMap[osArch] || osArch
 
-  const [osInfo, localPlugins, versionInfo] = await Promise.all([
+  const [osInfo, localPlugins, versionInfo, friendList, groupList] = await Promise.all([
     systemInfo.osInfo(),
     findLocalPlugins(),
     bot.getVersionInfo(),
+    bot.getFriendList(),
+    bot.getGroupList(),
   ])
 
   const pluginCount = localPlugins.length + BUILTIN_PLUGINS.length
@@ -107,8 +107,8 @@ export async function getMiokiStatus(bot: NapCat): Promise<MiokiStatus> {
     bot: {
       uin: bot.uin,
       nickname: bot.nickname,
-      // friends: bot.fl.size,
-      // groups: bot.gl.size,
+      friends: friendList.length,
+      groups: groupList.length,
       // guilds: bot.guilds.size,
     },
     plugins: {
@@ -117,6 +117,8 @@ export async function getMiokiStatus(bot: NapCat): Promise<MiokiStatus> {
     },
     stats: {
       uptime: process.uptime() * 1000,
+      send: bot.stat.send.group + bot.stat.send.private,
+      receive: bot.stat.recv.group + bot.stat.recv.private,
     },
     versions: {
       node: nodeVersion,
@@ -157,7 +159,9 @@ export async function getMiokiStatusStr(client: NapCat): Promise<string> {
   return `
 👤 ${bot.nickname}
 🆔 ${bot.uin}
+📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群
 🧩 启用了 ${localNum(plugins.enabled)} 个插件，共 ${localNum(plugins.total)} 个
+📮 收 ${localNum(stats.receive)} 条，发 ${localNum(stats.send)} 条
 🚀 ${filesize(memory.rss.used, { round: 1 })}/${memory.percent}%
 ⏳ 已运行 ${pm(stats.uptime, { hideYear: true, secondsDecimalDigits: 0 })}
 🤖 mioki/${versions.mioki}-NapCat/${versions.napcat}
