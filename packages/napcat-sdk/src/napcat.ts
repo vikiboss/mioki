@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import mitt from 'mitt'
 import pkg from '../package.json' with { type: 'json' }
 import { segment } from './segment'
-import { ABSTRACT_LOGGER } from './logger'
+import { CONSOLE_LOGGER } from './logger'
 
 import type { Emitter } from 'mitt'
 import type { Logger } from './logger'
@@ -31,7 +31,7 @@ const DEFAULT_NAPCAT_OPTIONS: Required<OptionalProps<NapcatOptions>> = {
   protocol: 'ws',
   host: 'localhost',
   port: 3333,
-  logger: ABSTRACT_LOGGER,
+  logger: CONSOLE_LOGGER,
 }
 
 export class NapCat {
@@ -306,7 +306,7 @@ export class NapCat {
           if (data.meta_event_type) {
             this.#event.emit(`meta_event.${data.meta_event_type}`, data)
 
-            this.logger.debug('收到 meta_event_type：', data.meta_event_type)
+            this.logger.trace('收到 meta_event_type：', data.meta_event_type)
 
             if (data.sub_type) {
               if (data.sub_type === 'connect') {
@@ -882,26 +882,26 @@ export class NapCat {
 
       ws.onclose = () => {
         this.#online = false
-        this.logger.debug('NapCat 已断开连接')
+        this.logger.debug('WebSocket 已断开连接')
         this.#event.emit('ws.close')
       }
 
       ws.onerror = (error) => {
         this.#online = false
-        this.logger.debug(`NapCat 发生错误：${error}`)
+        this.logger.debug(`WebSocket 发生错误：${error}`)
         this.#event.emit('ws.error', error)
         reject(error)
       }
 
       ws.onopen = () => {
-        this.logger.debug('NapCat 已连接')
+        this.logger.debug('WebSocket 已连接')
         this.#event.emit('ws.open')
         resolve()
       }
 
       this.#ws = ws
 
-      this.logger.trace(`WebSocket 实例已创建。`)
+      this.logger.info(`WebSocket 实例已创建`)
     })
   }
 

@@ -35,12 +35,12 @@
   },
   "author": "Viki <hi@viki.moe> (https://github.com/vikiboss)",
   "license": "MIT",
+  "dependencies": {
+    "mitt": "^3.0.1"
+  },
   "devDependencies": {
     "@types/node": "catalog:dev",
     "tsdown": "catalog:dev",
     "typescript": "catalog:dev"
-  },
-  "dependencies": {
-    "mitt": "^3.0.1"
   }
 }
