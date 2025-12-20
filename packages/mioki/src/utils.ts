@@ -197,17 +197,44 @@ export async function match(
   quote: boolean = true,
 ): Promise<{ message_id: number } | null> {
   const inputText = text(event)
-
+  
   for (const [key, value] of Object.entries(pattern)) {
-    if (key === inputText) {
+    let isMatch = false
+    
+    // 1. 支持正则表达式：以 / 开头和结尾的 pattern
+    if (key.startsWith('/') && key.endsWith('/') && key.length > 1) {
+      try {
+        const regex = new RegExp(key.slice(1, -1))
+        if (regex.test(inputText)) {
+          isMatch = true
+        }
+      } catch (err) {
+        // 正则表达式无效，跳过
+        console.error(`无效的正则表达式: ${key}`, err)
+      }
+    }
+    // 2. 支持通配符：包含 * 的 pattern
+    else if (key.includes('*')) {
+      // 将通配符转换为正则表达式
+      const regexPattern = '^' + key.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$'
+      const regex = new RegExp(regexPattern)
+      if (regex.test(inputText)) {
+        isMatch = true
+      }
+    }
+    // 3. 精确匹配
+    else if (key === inputText) {
+      isMatch = true
+    }
+    
+    if (isMatch) {
       const res = await (typeof value === 'function' ? value() : value)
-
       if (res) {
         return event.reply(res, quote)
       }
     }
   }
-
+  
   return null
 }
 
