@@ -20,7 +20,8 @@
     ],
     "log_level": "info",
     "plugins_dir": "../plugins",
-    "online_push": false,
+    "online_push": true,
+    "error_push": true,
     "napcat": {
       "protocol": "ws",
       "port": 3333,

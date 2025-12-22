@@ -89,7 +89,7 @@ export async function noticeMainOwner(bot: NapCat, message?: Sendable | null): P
   const mainOwner = botConfig.owners[0]
 
   if (mainOwner) {
-    await bot.sendPrivateMsg(mainOwner, message)
+    await (await bot.pickFriend(mainOwner))?.sendMsg(message)
     return
   }
 
