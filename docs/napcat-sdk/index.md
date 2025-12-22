@@ -159,7 +159,7 @@ napcat.on('request.group.add', async (event) => {
 | `token` | `string` | - | NapCat 访问令牌（必填） |
 | `protocol` | `'ws' \| 'wss'` | `ws` | WebSocket 协议 |
 | `host` | `string` | `localhost` | NapCat 服务器地址 |
-| `port` | `number` | `3333` | NapCat 服务器端口 |
+| `port` | `number` | `3001` | NapCat 服务器端口 |
 | `logger` | `Logger` | 内置 Logger | 自定义日志记录器 |
 
 ```ts

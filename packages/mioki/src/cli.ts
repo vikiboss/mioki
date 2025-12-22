@@ -42,15 +42,16 @@ interface CliOptions {
   选项:
   -h, --help              显示帮助信息
   -v, --version           显示版本号
-  --name <name>           指定项目名称
+
+  --name <name>           指定项目/文件夹名称，默认 bot
   --protocol <protocol>   指定 NapCat 协议，默认 ws
   --host <host>           指定 NapCat 主机，默认 localhost
-  --port <port>           指定 NapCat 端口，默认 3333
-  --token <token>         指定 NapCat 连接令牌
+  --port <port>           指定 NapCat 端口，默认 3001
+  --token <token>         指定 NapCat 连接 Token，默认空
   --prefix <prefix>       指定命令前缀，默认 #
-  --owners <owners>       指定主人 QQ，英文逗号分隔
-  --admins <admins>       指定管理员 QQ，英文逗号分隔
-  --use-npm-mirror        使用 npm 镜像源加速依赖安装
+  --owners <owners>       指定主人 QQ，英文逗号分隔，必填
+  --admins <admins>       指定管理员 QQ，英文逗号分隔，可空
+  --use-npm-mirror        使用 npm 镜像源加速依赖安装，默认否
 `,
   )
 
@@ -66,12 +67,12 @@ interface CliOptions {
 
   let {
     name = await input('请输入项目名称', { default: 'bot', placeholder: 'bot', required: true }),
-    token = await input('请输入 NapCat WS Token（必填）', { default: '', placeholder: '请输入', required: true }),
     owners = await input('请输入主人 QQ (最高权限，英文逗号分隔，必填)', {
       placeholder: '请输入',
       default: '',
       required: true,
     }),
+    token,
     protocol,
     host,
     port,
@@ -80,17 +81,19 @@ interface CliOptions {
     'use-npm-mirror': useNpmMirror,
   } = cli
 
-  if (name && token && owners) {
+  if (name && owners) {
     protocol ||= 'ws'
     host ||= 'localhost'
-    port ||= 3333
+    port ||= 3001
+    token ||= ''
     prefix ||= '#'
     admins ||= ''
     useNpmMirror ??= false
   } else {
+    token ||= await input('请输入 NapCat WS Token', { default: '', placeholder: '请输入' })
     protocol ||= await input('请输入 NapCat WS 协议', { default: 'ws', placeholder: 'ws', required: true })
     host ||= await input('请输入 NapCat WS 主机', { default: 'localhost', placeholder: 'localhost', required: true })
-    port ||= parseInt(await input('请输入 NapCat WS 端口', { default: '3333', placeholder: '3333', required: true }))
+    port ||= parseInt(await input('请输入 NapCat WS 端口', { default: '3001', placeholder: '3001', required: true }))
     prefix ||= await input('请输入消息命令前缀', { default: '#', placeholder: '#', required: true })
     admins ||= (await input('请输入管理员 QQ (插件权限，英文逗号分隔，可空)', { placeholder: '可空' })) || ''
     useNpmMirror ??= await confirm('是否使用 npm 镜像源加速依赖安装？', { initial: false })

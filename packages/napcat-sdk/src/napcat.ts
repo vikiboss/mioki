@@ -30,8 +30,9 @@ export const version: string = pkg.version
 const DEFAULT_NAPCAT_OPTIONS: Required<OptionalProps<NapcatOptions>> = {
   protocol: 'ws',
   host: 'localhost',
-  port: 3333,
+  port: 3001,
   logger: CONSOLE_LOGGER,
+  token: '',
 }
 
 export class NapCat {
@@ -83,7 +84,7 @@ export class NapCat {
       host: this.options.host || DEFAULT_NAPCAT_OPTIONS.host,
       port: this.options.port || DEFAULT_NAPCAT_OPTIONS.port,
       logger: this.options.logger || DEFAULT_NAPCAT_OPTIONS.logger,
-      token: this.options.token,
+      token: this.options.token || DEFAULT_NAPCAT_OPTIONS.token,
     }
   }
 

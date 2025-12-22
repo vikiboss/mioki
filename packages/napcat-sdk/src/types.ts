@@ -12,12 +12,12 @@ export interface Stat {
 
 export interface NapcatOptions {
   /** NapCat 访问令牌 */
-  token: string
+  token?: string
   /** NapCat 服务器协议，默认为 ws */
   protocol?: 'ws' | 'wss'
   /** NapCat 服务器主机，默认为 localhost */
   host?: string
-  /** NapCat 服务器端口，默认为 3333 */
+  /** NapCat 服务器端口，默认为 3001 */
   port?: number
   /** 日志记录器，默认为控制台日志记录器 */
   logger?: Logger

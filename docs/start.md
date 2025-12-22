@@ -62,7 +62,7 @@ npx mioki@latest [选项]
 | `--name <name>`     | 指定项目名称                      | `bot`       |
 | `--protocol <type>` | 指定 NapCat 协议（`ws` 或 `wss`） | `ws`        |
 | `--host <host>`     | 指定 NapCat 主机地址              | `localhost` |
-| `--port <port>`     | 指定 NapCat 端口                  | `3333`      |
+| `--port <port>`     | 指定 NapCat 端口                  | `3001`      |
 | `--token <token>`   | 指定 NapCat 连接令牌（必填）      | -           |
 | `--prefix <prefix>` | 指定命令前缀                      | `#`         |
 | `--owners <qq>`     | 指定主人 QQ，英文逗号分隔（必填） | -           |
@@ -90,7 +90,7 @@ npx mioki@latest \
   --name my-bot \
   --protocol ws \
   --host localhost \
-  --port 3333 \
+  --port 3001 \
   --token your-napcat-token \
   --prefix "#" \
   --owners 123456789,987654321 \
@@ -163,7 +163,7 @@ require('mioki').start({ cwd: __dirname })
     "napcat": {
       "protocol": "ws",
       "host": "localhost",
-      "port": 3333,
+      "port": 3001,
       "token": "your-napcat-token"
     }
   }
@@ -185,7 +185,7 @@ require('mioki').start({ cwd: __dirname })
 | `napcat.token`    | `string`   | -           | NapCat 访问令牌                            |
 | `napcat.protocol` | `string`   | `ws`        | WebSocket 协议：`ws` 或 `wss`，默认 ws     |
 | `napcat.host`     | `string`   | `localhost` | NapCat WebSocket 服务地址，默认 localhost  |
-| `napcat.port`     | `number`   | `3001`      | NapCat WebSocket 服务端口，默认 3333       |
+| `napcat.port`     | `number`   | `3001`      | NapCat WebSocket 服务端口，默认 3001       |
 
 ## 启动机器人 {#run}
 

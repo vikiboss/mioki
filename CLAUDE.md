@@ -129,8 +129,8 @@ Both packages use `tsdown` for building:
 ## NapCat Integration
 
 Mioki requires a running NapCat instance:
-- Default connection: `ws://localhost:3333`
-- NapCat runs in Docker (port 3001 inside, forwarded to 3333)
+- Default connection: `ws://localhost:3001`
+- NapCat runs in Docker (port 3001 inside, forwarded to 3001)
 - Configure WebSocket server in NapCat UI at http://localhost:6099
 - Token from NapCat config must match `napcat.token` in mioki config
 

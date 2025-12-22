@@ -41,20 +41,15 @@ export async function start(options: StartOptions = {}): Promise<void> {
   logger.info(`${colors.dim('配置文件: ')}${colors.blue(`${cfg.BOT_CWD.value}/package.json`)}`)
   logger.info(colors.dim('='.repeat(40)))
 
-  const { protocol = 'ws', port = 6700, host = 'localhost', token } = cfg.botConfig.napcat || {}
+  const { protocol = 'ws', port = 3001, host = 'localhost', token = '' } = cfg.botConfig.napcat || {}
+  const wsUrl = colors.green(`${protocol}://${host}:${port}${token ? '?access_token=***' : ''}`)
 
-  logger.info(`>>> 正在连接 NapCat 实例: ${colors.green(`${protocol}://${host}:${port}`)}`)
+  logger.info(`>>> 正在连接 NapCat 实例: ${wsUrl}`)
 
-  const napcat = new NapCat({
-    token,
-    protocol,
-    host,
-    port,
-    logger,
-  })
+  const napcat = new NapCat({ token, protocol, host, port, logger })
 
   napcat.on('ws.close', () => {
-    logger.error('连接已关闭，请确保 NapCat 实例正常运行及 token 配置正确')
+    logger.error('WS 连接失败，请确保 token 配置正确且 NapCat 实例正常运行')
     process.exit(1)
   })
 
