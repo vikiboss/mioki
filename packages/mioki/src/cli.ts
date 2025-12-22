@@ -67,7 +67,11 @@ interface CliOptions {
   let {
     name = await input('请输入项目名称', { default: 'bot', placeholder: 'bot', required: true }),
     token = await input('请输入 NapCat WS Token（必填）', { default: '', placeholder: '请输入', required: true }),
-    owners = await input('请输入主人 QQ (最高权限，英文逗号分隔，必填)', { placeholder: '请输入', required: true }),
+    owners = await input('请输入主人 QQ (最高权限，英文逗号分隔，必填)', {
+      placeholder: '请输入',
+      default: '',
+      required: true,
+    }),
     protocol,
     host,
     port,
@@ -101,13 +105,13 @@ interface CliOptions {
     },
     "mioki": {
       "prefix": "${prefix}",
-      "owners": [${owners
+      "owners": [${String(owners)
         .split(',')
         .map((o) => o.trim())
         .join(', ')}],
       "admins": [${
         admins
-          ? admins
+          ? String(admins)
               .split(',')
               .map((o) => `"${o.trim()}"`)
               .join(', ')
