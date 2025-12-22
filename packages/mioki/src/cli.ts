@@ -36,17 +36,12 @@ interface CliOptions {
   const helpInfo = dedent(
     `
   mioki 命令行工具 v${version}
-
-  选项:
-    -h, --help              显示帮助信息
-    -v, --version           显示版本号
-
+  
   用法: mioki <命令> [选项]
-
-  命令:
-    init [选项]             创建一个新的 mioki 项目
-
+  
   选项:
+  -h, --help              显示帮助信息
+  -v, --version           显示版本号
   --name <name>           指定项目名称
   --protocol <protocol>   指定 NapCat 协议，默认 ws
   --host <host>           指定 NapCat 主机，默认 localhost
