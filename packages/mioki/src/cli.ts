@@ -64,17 +64,33 @@ interface CliOptions {
       process.exit(0)
   }
 
-  const {
+  let {
     name = await input('请输入项目名称', { default: 'bot', placeholder: 'bot', required: true }),
-    protocol = await input('请输入 NapCat WS 协议', { default: 'ws', placeholder: 'ws', required: true }),
-    host = await input('请输入 NapCat WS 主机', { default: 'localhost', placeholder: 'localhost', required: true }),
-    port = parseInt(await input('请输入 NapCat WS 端口', { default: '3333', placeholder: '3333', required: true })),
     token = await input('请输入 NapCat WS Token（必填）', { default: '', placeholder: '请输入', required: true }),
-    prefix = await input('请输入消息命令前缀', { default: '#', placeholder: '#', required: true }),
     owners = await input('请输入主人 QQ (最高权限，英文逗号分隔，必填)', { placeholder: '请输入', required: true }),
-    admins = (await input('请输入管理员 QQ (插件权限，英文逗号分隔，可空)', { placeholder: '可空' })) || '',
-    'use-npm-mirror': useNpmMirror = await confirm('是否使用 npm 镜像源加速依赖安装？'),
+    protocol,
+    host,
+    port,
+    prefix,
+    admins,
+    'use-npm-mirror': useNpmMirror,
   } = cli
+
+  if (name && token && owners) {
+    protocol ||= 'ws'
+    host ||= 'localhost'
+    port ||= 3333
+    prefix ||= '#'
+    admins ||= ''
+    useNpmMirror ??= false
+  } else {
+    protocol ||= await input('请输入 NapCat WS 协议', { default: 'ws', placeholder: 'ws', required: true })
+    host ||= await input('请输入 NapCat WS 主机', { default: 'localhost', placeholder: 'localhost', required: true })
+    port ||= parseInt(await input('请输入 NapCat WS 端口', { default: '3333', placeholder: '3333', required: true }))
+    prefix ||= await input('请输入消息命令前缀', { default: '#', placeholder: '#', required: true })
+    admins ||= (await input('请输入管理员 QQ (插件权限，英文逗号分隔，可空)', { placeholder: '可空' })) || ''
+    useNpmMirror ??= await confirm('是否使用 npm 镜像源加速依赖安装？', { initial: false })
+  }
 
   const pkgJson = dedent(`
   {
