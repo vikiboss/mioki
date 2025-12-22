@@ -21,32 +21,114 @@ mioki 依赖 NapCat 作为 QQ 协议端，请先参考 [NapCat 官方文档](htt
 
 ## 创建项目 {#create-project}
 
-### 初始化项目目录
+### 方式一：使用 CLI 创建（推荐）{#create-with-cli}
+
+mioki 提供了交互式命令行工具，帮助你快速创建项目。只需一条命令即可完成项目初始化：
+
+```bash
+npx mioki@latest
+```
+
+CLI 会引导你完成以下配置：
+
+1. **项目名称**：生成的项目目录名
+2. **NapCat 连接配置**：协议、主机、端口、Token
+3. **机器人配置**：命令前缀、主人 QQ、管理员 QQ
+4. **依赖安装选项**：是否使用 npm 镜像源
+
+#### CLI 选项 {#cli-options}
+
+你也可以通过命令行参数预先指定配置，跳过交互式提问：
+
+```bash
+npx mioki@latest [选项]
+```
+
+| 选项                | 说明                              | 默认值      |
+| ------------------- | --------------------------------- | ----------- |
+| `-h, --help`        | 显示帮助信息                      | -           |
+| `-v, --version`     | 显示版本号                        | -           |
+| `--name <name>`     | 指定项目名称                      | `bot`       |
+| `--protocol <type>` | 指定 NapCat 协议（`ws` 或 `wss`） | `ws`        |
+| `--host <host>`     | 指定 NapCat 主机地址              | `localhost` |
+| `--port <port>`     | 指定 NapCat 端口                  | `3333`      |
+| `--token <token>`   | 指定 NapCat 连接令牌（必填）      | -           |
+| `--prefix <prefix>` | 指定命令前缀                      | `#`         |
+| `--owners <qq>`     | 指定主人 QQ，英文逗号分隔（必填） | -           |
+| `--admins <qq>`     | 指定管理员 QQ，英文逗号分隔       | -           |
+| `--use-npm-mirror`  | 使用 npm 镜像源加速依赖安装       | `false`     |
+
+#### CLI 使用示例 {#cli-examples}
+
+**交互式创建**（推荐新手）：
+
+```bash
+npx mioki@latest
+```
+
+**一键创建**（跳过所有交互）：
+
+```bash
+npx mioki@latest --name my-bot --token abc123 --owners 123456789
+```
+
+**完整参数示例**：
+
+```bash
+npx mioki@latest \
+  --name my-bot \
+  --protocol ws \
+  --host localhost \
+  --port 3333 \
+  --token your-napcat-token \
+  --prefix "#" \
+  --owners 123456789,987654321 \
+  --admins 111111111,222222222 \
+  --use-npm-mirror
+```
+
+**查看帮助**：
+
+```bash
+npx mioki --help
+```
+
+创建完成后，CLI 会输出引导信息，按照提示启动机器人：
+
+```bash
+cd my-bot && npm install && npm start
+```
+
+### 方式二：手动创建 {#create-manually}
+
+如果你更喜欢手动配置，也可以按照以下步骤创建项目：
+
+#### 初始化项目目录
 
 ```bash
 # 创建项目目录
 mkdir my-bot && cd my-bot
 
 # 初始化 package.json
-pnpm init
+npm init
 ```
 
-### 安装 mioki
+#### 安装 mioki
 
 ```bash
-pnpm add mioki
+npm add mioki
 ```
 
-### 创建入口文件
+#### 创建入口文件
 
-创建 `app.ts`（或 `app.js`）作为机器人入口：
+创建 `app.ts` 作为机器人入口：
 
 ```ts
 // app.ts
 require('mioki').start({ cwd: __dirname })
 ```
 
-### 配置 mioki
+#### 配置 mioki
 
 在 `package.json` 中添加 `mioki` 配置项：
 
@@ -65,9 +147,8 @@ require('mioki').start({ cwd: __dirname })
     "admins": [],
     "plugins": [],
     "log_level": "info",
-    "plugins_dir": "plugins",
-    "error_push": false,
-    "online_push": false,
+    "error_push": true,
+    "online_push": true,
     "napcat": {
       "protocol": "ws",
       "host": "localhost",

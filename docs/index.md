@@ -15,8 +15,8 @@ hero:
     alt: mioki
   actions:
     - theme: brand
-      text: 快速上手 →
-      link: /start
+      text: 快速开始 →
+      link: /start#create-with-cli
     - theme: alt
       text: 了解 mioki
       link: /intro
