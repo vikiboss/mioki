@@ -20,7 +20,9 @@ const corePlugins = ['mioki-core']
 
 export interface MiokiCoreServiceContrib {
   /** 获取框架和系统的实时状态 */
-  getMiokiStatus(): Promise<MiokiStatus>
+  miokiStatus(): Promise<MiokiStatus>
+  /** 获取框架和系统的实时状态字符串 */
+  miokiStatusStr(): Promise<string>
 }
 
 const core: MiokiPlugin = definePlugin({
@@ -32,14 +34,18 @@ const core: MiokiPlugin = definePlugin({
 
     const cmdPrefix = new RegExp(`^${prefix}`)
     const displayPrefix = prefix.replace(/\\\\/g, '\\')
+    const statusAdminOnly = ctx.botConfig.status_permission === 'admin-only'
 
     ctx.addService('miokiStatus', () => getMiokiStatus(ctx.bot))
+    ctx.addService('miokiStatusStr', () => getMiokiStatusStr(ctx.bot))
 
     ctx.handle('message', (e) =>
       ctx.runWithErrorHandler(async () => {
         const text = ctx.text(e)
 
         if (!cmdPrefix.test(text)) return
+
+        if (statusAdminOnly && !ctx.hasRight(e)) return
 
         if (text.replace(cmdPrefix, '') === '状态') {
           const status = await getMiokiStatusStr(ctx.bot)
