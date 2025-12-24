@@ -71,6 +71,9 @@ export default defineConfig({
     outline: 2,
     outlineTitle: '大纲',
     lastUpdatedText: '上次更新',
+    editLink: {
+      pattern: 'https://github.com/vikiboss/mioki/edit/main/docs/:path',
+    },
     docFooter: {
       prev: '上一页',
       next: '下一页',
