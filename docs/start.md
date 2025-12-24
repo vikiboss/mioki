@@ -52,21 +52,21 @@ CLI 会依次引导你完成项目名称、NapCat 连接配置、权限设置等
 
 配置文件 `package.json` 中会生成一个 `mioki` 字段，包含：
 
-| 配置项            | 类型       | 默认值      | 说明                                       |
-| ----------------- | ---------- | ----------- | ------------------------------------------ |
-| `prefix`          | `string`   | `#`         | 指令前缀，用于识别框架指令                 |
-| `owners`          | `number[]` | `[]`        | 机器人主人 QQ 号列表，拥有最高权限         |
-| `admins`          | `number[]` | `[]`        | 机器人管理员 QQ 号列表                     |
-| `plugins`         | `string[]` | `[]`        | 启用的插件列表（插件目录名）               |
-| `log_level`       | `string`   | `info`      | 日志级别：`debug`、`info`、`warn`、`error` |
-| `plugins_dir`     | `string`   | `plugins`   | 插件目录路径                               |
-| `error_push`      | `boolean`  | `false`     | 是否将未捕获的错误推送给主人               |
-| `online_push`     | `boolean`  | `false`     | 机器人上线时是否通知主人                   |
-| `status_permission` | `string` | -           | 状态命令权限：`admin-only` 仅管理可用，默认所有人 |
-| `napcat.token`    | `string`   | -           | NapCat WebSocket 访问密钥                  |
-| `napcat.protocol` | `string`   | `ws`        | WebSocket 协议：`ws` 或 `wss`，默认 ws     |
-| `napcat.host`     | `string`   | `localhost` | NapCat WebSocket 服务地址，默认 localhost  |
-| `napcat.port`     | `number`   | `3001`      | NapCat WebSocket 服务端口，默认 3001       |
+| 配置项              | 类型       | 默认值        | 说明                                              |
+| ------------------- | ---------- | ------------- | ------------------------------------------------- |
+| `prefix`            | `string`   | `"#"`         | 指令前缀，用于识别框架指令                        |
+| `owners`            | `number[]` | `[]`          | 机器人主人 QQ 号列表，拥有最高权限                |
+| `admins`            | `number[]` | `[]`          | 机器人管理员 QQ 号列表                            |
+| `plugins`           | `string[]` | `[]`          | 启用的插件列表（插件目录名）                      |
+| `log_level`         | `string`   | `"info"`      | 日志级别：`debug`、`info`、`warn`、`error`        |
+| `plugins_dir`       | `string`   | `"./plugins"` | 插件目录路径                                      |
+| `error_push`        | `boolean`  | `false`       | 是否将未捕获的错误推送给主人                      |
+| `online_push`       | `boolean`  | `false`       | 机器人上线时是否通知主人                          |
+| `status_permission` | `string`   | `"all"`       | 状态命令权限：`admin-only` 仅管理可用，默认所有人 |
+| `napcat.token`      | `string`   | `""`          | NapCat WebSocket 访问密钥                         |
+| `napcat.protocol`   | `string`   | `"ws"`        | WebSocket 协议：`ws` 或 `wss`，默认 ws            |
+| `napcat.host`       | `string`   | `"localhost"` | NapCat WebSocket 服务地址，默认 localhost         |
+| `napcat.port`       | `number`   | `3001`        | NapCat WebSocket 服务端口，默认 3001              |
 
 ## 启动机器人 {#run}
 
