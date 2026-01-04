@@ -4,9 +4,6 @@ export default definePlugin({
   name: 'words',
   version: '1.0.0',
   async setup(ctx) {
-    ctx.logger.info('插件 Words 已加载！')
-    ctx.logger.info(`当前登录账号: ${ctx.bot.nickname}（${ctx.bot.uin}）`)
-
     ctx.handle('message', async (event) => {
       ctx.match(
         event,

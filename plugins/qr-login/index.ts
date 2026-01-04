@@ -764,7 +764,6 @@ export default definePlugin({
   version: '2.0.0',
   priority: 10,
   setup(ctx) {
-    ctx.logger.info('加载插件 qr-login')
     ctx.addService('login', LoginService)
   },
 })
