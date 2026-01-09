@@ -61,6 +61,27 @@ export interface EventMap extends OneBotEventMap {
     timestamp: number
   }
 
+  /** NapCat 断开连接 */
+  'napcat.disconnected': {
+    manual: boolean
+    reason?: string
+  }
+
+  /** 机器人上线 */
+  'napcat.online': {
+    user_id: number
+    nickname: string
+  }
+
+  /** 机器人下线 */
+  'napcat.offline': {
+    user_id: number
+    nickname: string
+  }
+
+  /** 正在关闭 NapCat 实例 */
+  'napcat.closing': void
+
   /** 开始尝试重连 */
   'napcat.reconnecting': {
     attempt: number
@@ -77,6 +98,20 @@ export interface EventMap extends OneBotEventMap {
   'napcat.reconnect_failed': {
     attempt: number
     maxAttempts: number
+  }
+
+  /** API 调用超时 */
+  'napcat.api_timeout': {
+    action: string
+    echo: string
+    timeout: number
+  }
+
+  /** API 调用错误 */
+  'napcat.api_error': {
+    action: string
+    error: string
+    retcode?: number
   }
 }
 

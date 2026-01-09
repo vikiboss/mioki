@@ -217,6 +217,30 @@ export class NapCat {
     })
   }
 
+  /** 设置在线状态，并发出相应事件 */
+  #setOnlineStatus(online: boolean): void {
+    if (this.#online === online) {
+      return
+    }
+
+    const wasOnline = this.#online
+    this.#online = online
+
+    if (online && !wasOnline) {
+      this.logger.info(`机器人上线: ${this.#nickname}(${this.#uin})`)
+      this.#event.emit('napcat.online', {
+        user_id: this.#uin,
+        nickname: this.#nickname,
+      })
+    } else if (!online && wasOnline) {
+      this.logger.info(`机器人下线: ${this.#nickname}(${this.#uin})`)
+      this.#event.emit('napcat.offline', {
+        user_id: this.#uin,
+        nickname: this.#nickname,
+      })
+    }
+  }
+
   /** 标准化可发送消息元素 */
   normalizeSendable(msg: Arrayable<Sendable>): NormalizedElementToSend[] {
     return [msg].flat(2).map((item) => {
@@ -232,7 +256,7 @@ export class NapCat {
   }
 
   /** 等待服务器响应操作 */
-  #waitForAction<T extends any>(echoId: string, timeout: number = 30_000) {
+  #waitForAction<T extends any>(echoId: string, action: string, timeout: number = 30_000) {
     const eventName = `echo#${echoId}`
 
     return new Promise<T>((resolve, reject) => {
@@ -254,7 +278,13 @@ export class NapCat {
         if (data.retcode === 0) {
           resolve(data.data as T)
         } else {
-          reject(new Error(`API 错误: ${data.message}`))
+          const error = `API 错误: ${data.message}`
+          this.#event.emit('napcat.api_error', {
+            action,
+            error: data.message || 'Unknown error',
+            retcode: data.retcode,
+          })
+          reject(new Error(error))
         }
       }
 
@@ -262,7 +292,13 @@ export class NapCat {
 
       timeoutId = setTimeout(() => {
         cleanup()
-        reject(new Error(`API 请求超时: ${echoId}`))
+        const error = `API 请求超时: ${action}`
+        this.#event.emit('napcat.api_timeout', {
+          action,
+          echo: echoId,
+          timeout,
+        })
+        reject(new Error(error))
       }, timeout)
     })
   }
@@ -426,9 +462,9 @@ export class NapCat {
                 const { app_name, app_version, protocol_version } = await this.getVersionInfo()
                 const { nickname, user_id } = await this.getLoginInfo()
 
-                this.#online = true
                 this.#uin = user_id
                 this.#nickname = nickname
+                this.#setOnlineStatus(true)
 
                 this.#event.emit('napcat.connected', {
                   user_id: this.#uin,
@@ -717,10 +753,15 @@ export class NapCat {
 
     try {
       this.#ws.send(JSON.stringify({ echo, action, params }))
-      return this.#waitForAction<T>(echo)
+      return this.#waitForAction<T>(echo, action)
     } catch (error: any) {
-      this.logger.error(`发送 API 请求失败: ${error?.message || error}`)
-      return Promise.reject(new Error(`发送 API 请求失败: ${error?.message || error}`))
+      const errorMsg = error?.message || String(error)
+      this.logger.error(`发送 API 请求失败: ${errorMsg}`)
+      this.#event.emit('napcat.api_error', {
+        action,
+        error: errorMsg,
+      })
+      return Promise.reject(new Error(`发送 API 请求失败: ${errorMsg}`))
     }
   }
 
@@ -1074,9 +1115,14 @@ export class NapCat {
       }
 
       ws.onclose = () => {
-        this.#online = false
+        this.#setOnlineStatus(false)
         this.logger.debug('WebSocket 已断开连接')
         this.#event.emit('ws.close')
+
+        // 发出 napcat.disconnected 事件
+        this.#event.emit('napcat.disconnected', {
+          manual: this.#manualClose,
+        })
 
         // 如果不是手动关闭，尝试重连
         if (!this.#manualClose) {
@@ -1085,10 +1131,16 @@ export class NapCat {
       }
 
       ws.onerror = (event) => {
-        this.#online = false
+        this.#setOnlineStatus(false)
         const msg = `WebSocket 发生错误，请确认 NapCat 服务已启动，且端口、访问令牌正确`
         this.logger.debug(msg)
         this.#event.emit('ws.error', event)
+
+        // 发出 napcat.disconnected 事件（错误导致的断开）
+        this.#event.emit('napcat.disconnected', {
+          manual: false,
+          reason: msg,
+        })
 
         // 如果是首次连接，则 reject
         if (!this.#reconnecting) {
@@ -1129,11 +1181,13 @@ export class NapCat {
 
   /** 销毁 NapCat SDK 实例，关闭 WebSocket 连接 */
   close(): void {
+    this.logger.info('正在关闭 NapCat SDK 实例...')
+    this.#event.emit('napcat.closing')
+
     this.#manualClose = true
     this.#clearReconnectTimer()
 
     if (this.#ws) {
-      this.logger.info('正在销毁 NapCat SDK 实例...')
       this.#ws.close()
       this.#ws = null
       this.logger.info('NapCat SDK 实例已销毁')
