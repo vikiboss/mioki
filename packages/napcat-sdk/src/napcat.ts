@@ -174,6 +174,33 @@ export class NapCat {
     }
   }
 
+  /** 安全的 JSON 序列化，处理循环引用和不可序列化的值 */
+  #safeStringify(obj: any): string {
+    const seen = new WeakSet()
+    return JSON.stringify(obj, (key, value) => {
+      // 过滤掉内部的 timeout 引用
+      if (key === '__timeout_id__') {
+        return undefined
+      }
+      // 过滤掉函数
+      if (typeof value === 'function') {
+        return undefined
+      }
+      // 过滤掉 napcat 实例引用
+      if (key === 'napcat') {
+        return undefined
+      }
+      // 处理对象类型的循环引用
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]'
+        }
+        seen.add(value)
+      }
+      return value
+    })
+  }
+
   /** 标准化可发送消息元素 */
   normalizeSendable(msg: Arrayable<Sendable>): NormalizedElementToSend[] {
     return [msg].flat(2).map((item) => {
@@ -354,7 +381,7 @@ export class NapCat {
     if (data.post_type) {
       switch (data.post_type) {
         case 'meta_event': {
-          this.logger.trace(`收到 meta_event: ${JSON.stringify(data)}`)
+          this.logger.trace(`收到 meta_event: ${this.#safeStringify(data)}`)
 
           this.#event.emit('meta_event', data)
 
@@ -409,8 +436,7 @@ export class NapCat {
             case 'private': {
               this.#event.emit('message.private', data)
               this.#event.emit(`message.private.${data.sub_type}`, data)
-              const { friend: _, ...rest } = data
-              this.logger.trace(`收到私聊消息: ${JSON.stringify(rest)}`)
+              this.logger.trace(`收到私聊消息: ${this.#safeStringify(data)}`)
               this.logger.info(`[私:${sender}] ${msg}`)
               break
             }
@@ -418,14 +444,13 @@ export class NapCat {
             case 'group': {
               this.#event.emit('message.group', data)
               this.#event.emit(`message.group.${data.sub_type}`, data)
-              const { group: _, ...rest } = data
-              this.logger.trace(`收到群消息: ${JSON.stringify(rest)}`)
+              this.logger.trace(`收到群消息: ${this.#safeStringify(data)}`)
               this.logger.info(`[群:${group}] ${sender}: ${msg}`)
               break
             }
 
             default: {
-              this.logger.debug(`收到未知消息类型: ${JSON.stringify(data)}`)
+              this.logger.debug(`收到未知消息类型: ${this.#safeStringify(data)}`)
 
               break
             }
@@ -444,8 +469,7 @@ export class NapCat {
           }
 
           this.#event.emit('message_sent', data)
-          const { group: _, friend: __, ...rest } = data
-          this.logger.trace(`收到 message_sent: ${JSON.stringify(rest)}`)
+          this.logger.trace(`收到 message_sent: ${this.#safeStringify(data)}`)
 
           if (data.message_type) {
             this.#event.emit(`message_sent.${data.message_type}`, data)
@@ -467,10 +491,10 @@ export class NapCat {
         }
 
         case 'notice': {
-          this.logger.trace(`收到通知: ${JSON.stringify(data)}`)
+          this.logger.trace(`收到通知: ${this.#safeStringify(data)}`)
 
           if (!data.notice_type) {
-            this.logger.debug(`收到未知通知类型: ${JSON.stringify(data)}`)
+            this.logger.debug(`收到未知通知类型: ${this.#safeStringify(data)}`)
             break
           }
 
@@ -512,7 +536,7 @@ export class NapCat {
         }
 
         case 'request': {
-          this.logger.trace(`收到请求: ${JSON.stringify(data)}`)
+          this.logger.trace(`收到请求: ${this.#safeStringify(data)}`)
 
           if (data.request_type === 'friend') {
             data.reject = (reason?: string) =>
@@ -539,7 +563,7 @@ export class NapCat {
         }
 
         default: {
-          this.logger.debug(`收到: ${JSON.stringify(data)}`)
+          this.logger.debug(`收到: ${this.#safeStringify(data)}`)
           this.#event.emit(data.post_type, data)
           return
         }
