@@ -23,6 +23,14 @@ export interface NapcatOptions {
   port?: number
   /** 日志记录器，默认为控制台日志记录器 */
   logger?: Logger
+  /** 是否启用自动重连，默认为 true */
+  reconnect?: boolean
+  /** 初始重连间隔（毫秒），默认为 1000 */
+  reconnectInterval?: number
+  /** 最大重连次数，默认为 Infinity（无限重连） */
+  maxReconnectAttempts?: number
+  /** 最大重连间隔（毫秒），用于退避策略，默认为 30000 */
+  maxReconnectInterval?: number
 }
 
 export type OptionalKeys<T> = {
@@ -51,6 +59,24 @@ export interface EventMap extends OneBotEventMap {
     app_version: string
     protocol_version: string
     timestamp: number
+  }
+
+  /** 开始尝试重连 */
+  'napcat.reconnecting': {
+    attempt: number
+    maxAttempts: number
+    delay: number
+  }
+
+  /** 重连成功 */
+  'napcat.reconnected': {
+    attempt: number
+  }
+
+  /** 重连失败（达到最大重连次数） */
+  'napcat.reconnect_failed': {
+    attempt: number
+    maxAttempts: number
   }
 }
 

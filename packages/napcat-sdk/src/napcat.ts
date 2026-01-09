@@ -34,6 +34,10 @@ const DEFAULT_NAPCAT_OPTIONS: Required<OptionalProps<NapcatOptions>> = {
   port: 3001,
   logger: CONSOLE_LOGGER,
   token: '',
+  reconnect: true,
+  reconnectInterval: 1000,
+  maxReconnectAttempts: Infinity,
+  maxReconnectInterval: 30000,
 }
 
 export class NapCat {
@@ -74,6 +78,14 @@ export class NapCat {
       legacyCookie: string
     }
   >()
+  /** 当前重连尝试次数 */
+  #reconnectAttempts: number = 0
+  /** 重连定时器 */
+  #reconnectTimer: NodeJS.Timeout | null = null
+  /** 是否正在重连 */
+  #reconnecting: boolean = false
+  /** 是否手动关闭 */
+  #manualClose: boolean = false
 
   public static ABSTRACT_LOGGER: Logger = ABSTRACT_LOGGER
   public static CONSOLE_LOGGER: Logger = CONSOLE_LOGGER
@@ -93,6 +105,10 @@ export class NapCat {
       port: this.options.port || DEFAULT_NAPCAT_OPTIONS.port,
       logger: this.options.logger || DEFAULT_NAPCAT_OPTIONS.logger,
       token: this.options.token || DEFAULT_NAPCAT_OPTIONS.token,
+      reconnect: this.options.reconnect ?? DEFAULT_NAPCAT_OPTIONS.reconnect,
+      reconnectInterval: this.options.reconnectInterval || DEFAULT_NAPCAT_OPTIONS.reconnectInterval,
+      maxReconnectAttempts: this.options.maxReconnectAttempts ?? DEFAULT_NAPCAT_OPTIONS.maxReconnectAttempts,
+      maxReconnectInterval: this.options.maxReconnectInterval || DEFAULT_NAPCAT_OPTIONS.maxReconnectInterval,
     }
   }
 
@@ -216,23 +232,38 @@ export class NapCat {
   }
 
   /** 等待服务器响应操作 */
-  #waitForAction<T extends any>(echoId: string) {
+  #waitForAction<T extends any>(echoId: string, timeout: number = 30_000) {
     const eventName = `echo#${echoId}`
 
     return new Promise<T>((resolve, reject) => {
+      let timeoutId: NodeJS.Timeout | null = null
+
+      const cleanup = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        this.#echoEvent.off(eventName, handle)
+      }
+
       const handle = (data: any) => {
         if (!data || data.echo !== echoId) return
 
-        this.#echoEvent.off(eventName, handle)
+        cleanup()
 
         if (data.retcode === 0) {
           resolve(data.data as T)
         } else {
-          reject(`API 错误: ${data.message}`)
+          reject(new Error(`API 错误: ${data.message}`))
         }
       }
 
       this.#echoEvent.on(eventName, handle)
+
+      timeoutId = setTimeout(() => {
+        cleanup()
+        reject(new Error(`API 请求超时: ${echoId}`))
+      }, timeout)
     })
   }
 
@@ -683,8 +714,14 @@ export class NapCat {
     this.#ensureWsConnection(this.#ws)
     this.logger.debug(`调用 API: ${action}，参数: ${JSON.stringify(params)}`)
     const echo = this.#echoId()
-    this.#ws.send(JSON.stringify({ echo, action, params }))
-    return this.#waitForAction<T>(echo)
+
+    try {
+      this.#ws.send(JSON.stringify({ echo, action, params }))
+      return this.#waitForAction<T>(echo)
+    } catch (error: any) {
+      this.logger.error(`发送 API 请求失败: ${error?.message || error}`)
+      return Promise.reject(new Error(`发送 API 请求失败: ${error?.message || error}`))
+    }
   }
 
   /**
@@ -961,12 +998,60 @@ export class NapCat {
     return bkn
   }
 
-  /** 启动 NapCat SDK 实例，建立 WebSocket 连接 */
-  async run(): Promise<void> {
-    const { logger: _, token: __, ...config } = this.#config
+  /** 计算重连延迟（指数退避） */
+  #getReconnectDelay(): number {
+    const { reconnectInterval, maxReconnectInterval } = this.#config
+    const delay = reconnectInterval * Math.pow(2, this.#reconnectAttempts)
+    return Math.min(delay, maxReconnectInterval)
+  }
 
-    this.logger.debug(`启动配置: ${JSON.stringify(config)}`)
+  /** 清除重连定时器 */
+  #clearReconnectTimer(): void {
+    if (this.#reconnectTimer) {
+      clearTimeout(this.#reconnectTimer)
+      this.#reconnectTimer = null
+    }
+  }
 
+  /** 调度重连 */
+  #scheduleReconnect(): void {
+    const { reconnect, maxReconnectAttempts } = this.#config
+
+    if (!reconnect || this.#manualClose) {
+      return
+    }
+
+    if (this.#reconnectAttempts >= maxReconnectAttempts) {
+      this.logger.error(`重连失败，已达到最大重连次数 ${maxReconnectAttempts}`)
+      this.#event.emit('napcat.reconnect_failed', {
+        attempt: this.#reconnectAttempts,
+        maxAttempts: maxReconnectAttempts,
+      })
+      return
+    }
+
+    this.#reconnecting = true
+    this.#reconnectAttempts++
+
+    const delay = this.#getReconnectDelay()
+
+    this.logger.info(`将在 ${delay}ms 后尝试第 ${this.#reconnectAttempts} 次重连`)
+    this.#event.emit('napcat.reconnecting', {
+      attempt: this.#reconnectAttempts,
+      maxAttempts: maxReconnectAttempts,
+      delay,
+    })
+
+    this.#clearReconnectTimer()
+    this.#reconnectTimer = setTimeout(() => {
+      this.#connect().catch((err) => {
+        this.logger.error(`重连失败: ${err?.message || err}`)
+      })
+    }, delay)
+  }
+
+  /** 建立 WebSocket 连接 */
+  #connect(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(this.#buildWsUrl())
 
@@ -992,6 +1077,11 @@ export class NapCat {
         this.#online = false
         this.logger.debug('WebSocket 已断开连接')
         this.#event.emit('ws.close')
+
+        // 如果不是手动关闭，尝试重连
+        if (!this.#manualClose) {
+          this.#scheduleReconnect()
+        }
       }
 
       ws.onerror = (event) => {
@@ -999,12 +1089,27 @@ export class NapCat {
         const msg = `WebSocket 发生错误，请确认 NapCat 服务已启动，且端口、访问令牌正确`
         this.logger.debug(msg)
         this.#event.emit('ws.error', event)
-        reject(new Error(msg))
+
+        // 如果是首次连接，则 reject
+        if (!this.#reconnecting) {
+          reject(new Error(msg))
+        }
       }
 
       ws.onopen = () => {
         this.logger.info(`WebSocket 已连接，NapCat SDK 实例已启动`)
         this.#event.emit('ws.open')
+
+        // 重连成功
+        if (this.#reconnecting) {
+          this.logger.info(`第 ${this.#reconnectAttempts} 次重连成功`)
+          this.#event.emit('napcat.reconnected', {
+            attempt: this.#reconnectAttempts,
+          })
+          this.#reconnecting = false
+          this.#reconnectAttempts = 0
+        }
+
         resolve()
       }
 
@@ -1012,8 +1117,21 @@ export class NapCat {
     })
   }
 
+  /** 启动 NapCat SDK 实例，建立 WebSocket 连接 */
+  async run(): Promise<void> {
+    const { logger: _, token: __, ...config } = this.#config
+
+    this.logger.debug(`启动配置: ${JSON.stringify(config)}`)
+
+    this.#manualClose = false
+    return this.#connect()
+  }
+
   /** 销毁 NapCat SDK 实例，关闭 WebSocket 连接 */
   close(): void {
+    this.#manualClose = true
+    this.#clearReconnectTimer()
+
     if (this.#ws) {
       this.logger.info('正在销毁 NapCat SDK 实例...')
       this.#ws.close()
@@ -1022,6 +1140,10 @@ export class NapCat {
     } else {
       this.logger.warn('NapCat SDK 实例未初始化')
     }
+
+    // 重置重连状态
+    this.#reconnecting = false
+    this.#reconnectAttempts = 0
   }
 }
 
