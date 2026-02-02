@@ -31,7 +31,7 @@ const core: MiokiPlugin = definePlugin({
 
     let statusFormatter = (status: MiokiStatus): Awaitable<Arrayable<Sendable>> => formatMiokiStatus(status)
 
-    ctx.addService('getMiokiStatus', () => getMiokiStatus(ctx.bot))
+    ctx.addService('getMiokiStatus', () => getMiokiStatus(ctx.bots))
     ctx.addService('formatMiokiStatus', (status: MiokiStatus) => formatMiokiStatus(status))
     ctx.addService('customFormatMiokiStatus', (formatter: StatusFormatter) => (statusFormatter = formatter))
 
@@ -44,7 +44,7 @@ const core: MiokiPlugin = definePlugin({
         if (statusAdminOnly && !ctx.hasRight(e)) return
 
         if (text.replace(cmdPrefix, '') === '状态') {
-          const status = await statusFormatter(await getMiokiStatus(ctx.bot))
+          const status = await statusFormatter(await getMiokiStatus(ctx.bots))
           await e.reply(status)
           return
         }
@@ -145,11 +145,11 @@ const core: MiokiPlugin = definePlugin({
 
                   if (plugin.name !== target) {
                     const tip = `[插件目录名称: ${target}] 和插件代码中设置的 [name: ${plugin.name}] 不一致，可能导致重载异常，请修改后重启。`
-                    ctx.bot.logger.warn(tip)
+                    ctx.logger.warn(tip)
                     ctx.noticeMainOwner(tip)
                   }
 
-                  await enablePlugin(ctx.bot, plugin)
+                  await enablePlugin(ctx.bots, plugin)
                 } catch (err: any) {
                   await e.reply(`插件 ${target} 启用失败：${err?.message || '未知错误'}`, true)
                   return
@@ -184,7 +184,7 @@ const core: MiokiPlugin = definePlugin({
 
                 await ctx.updateBotConfig((c) => (c.plugins = ctx.botConfig.plugins.filter((name) => name !== target)))
 
-                ctx.bot.logger.info(`禁用插件 => ${target}`)
+                ctx.logger.info(`禁用插件 => ${target}`)
 
                 await e.reply(`插件 ${target} 已禁用`, true)
 
@@ -221,11 +221,11 @@ const core: MiokiPlugin = definePlugin({
 
                   if (importedPlugin.name !== target) {
                     const tip = `插件目录名称: ${target} 和插件代码中设置的 name: ${importedPlugin.name} 不一致，可能导致重载异常，请修改后重启。`
-                    ctx.bot.logger.warn(tip)
+                    ctx.logger.warn(tip)
                     ctx.noticeMainOwner(tip)
                   }
 
-                  await enablePlugin(ctx.bot, importedPlugin)
+                  await enablePlugin(ctx.bots, importedPlugin)
                 } catch (err: any) {
                   await e.reply(err?.message, true)
                   await ctx.updateBotConfig((c) => (c.plugins = c.plugins.filter((name) => name !== target)))
@@ -391,7 +391,7 @@ const core: MiokiPlugin = definePlugin({
 
           case '退出': {
             await e.reply('またね～', true)
-            ctx.bot.logger.info('接收到退出指令，即将退出... 如需自动重启，请使用 pm2 部署。')
+            ctx.logger.info('接收到退出指令，即将退出... 如需自动重启，请使用 pm2 部署。')
             process.exit(0)
           }
         }

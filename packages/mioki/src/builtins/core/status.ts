@@ -6,6 +6,7 @@ import { findLocalPlugins, runtimePlugins } from '../../plugin'
 import { prettyMs, filesize, localNum, systemInfo } from '../..'
 
 import type { NapCat } from 'napcat-sdk'
+import type { BotInfo } from '../../start'
 
 export const SystemMap: Record<string, string> = {
   Linux: 'Linux',
@@ -20,14 +21,18 @@ export const ArchMap: Record<string, string> = {
   x64: 'x64',
 }
 
+export interface BotStatus {
+  uin: number
+  nickname: string
+  name?: string
+  friends: number
+  groups: number
+  send: number
+  receive: number
+}
+
 export interface MiokiStatus {
-  bot: {
-    uin: number
-    nickname: string
-    friends: number
-    groups: number
-    // guilds: number
-  }
+  bots: BotStatus[]
   plugins: {
     enabled: number
     total: number
@@ -37,11 +42,6 @@ export interface MiokiStatus {
     send: number
     receive: number
   }
-  // platform: {
-  //   name: string
-  //   version: string
-  //   subid: string
-  // }
   versions: {
     node: string
     mioki: string
@@ -75,18 +75,15 @@ export interface MiokiStatus {
   }
 }
 
-export async function getMiokiStatus(bot: NapCat): Promise<MiokiStatus> {
+export async function getMiokiStatus(bots: BotInfo[]): Promise<MiokiStatus> {
   const osType = os.type()
   const osArch = os.arch()
   const isInUnix = ['Linux', 'Darwin'].includes(osType)
   const arch = ArchMap[osArch] || osArch
 
-  const [osInfo, localPlugins, versionInfo, friendList, groupList] = await Promise.all([
+  const [osInfo, localPlugins] = await Promise.all([
     systemInfo.osInfo(),
     findLocalPlugins(),
-    bot.getVersionInfo(),
-    bot.getFriendList(),
-    bot.getGroupList(),
   ])
 
   const pluginCount = localPlugins.length + BUILTIN_PLUGINS.length
@@ -102,29 +99,64 @@ export async function getMiokiStatus(bot: NapCat): Promise<MiokiStatus> {
   const nodeVersion = process.versions.node
   const cpu = getCpuInfo()
 
+  // 获取所有 bot 的状态
+  const botStatuses: BotStatus[] = []
+  let totalSend = 0
+  let totalReceive = 0
+  let mainVersionInfo = { app_version: 'unknown', protocol_version: 'unknown' }
+
+  for (const botInfo of bots) {
+    const { napcat: bot, user_id, nickname, name } = botInfo
+    try {
+      const [versionInfo, friendList, groupList] = await Promise.all([
+        bot.getVersionInfo(),
+        bot.getFriendList(),
+        bot.getGroupList(),
+      ])
+
+      mainVersionInfo = versionInfo
+
+      botStatuses.push({
+        uin: user_id,
+        nickname,
+        name,
+        friends: friendList.length,
+        groups: groupList.length,
+        send: bot.stat.send.group + bot.stat.send.private,
+        receive: bot.stat.recv.group + bot.stat.recv.private,
+      })
+
+      totalSend += bot.stat.send.group + bot.stat.send.private
+      totalReceive += bot.stat.recv.group + bot.stat.recv.private
+    } catch (err) {
+      botStatuses.push({
+        uin: user_id,
+        nickname,
+        name,
+        friends: 0,
+        groups: 0,
+        send: 0,
+        receive: 0,
+      })
+    }
+  }
+
   return {
-    bot: {
-      uin: bot.uin,
-      nickname: bot.nickname,
-      friends: friendList.length,
-      groups: groupList.length,
-      // guilds: bot.guilds.size,
-    },
+    bots: botStatuses,
     plugins: {
       enabled: runtimePlugins.size,
       total: pluginCount,
     },
     stats: {
       uptime: process.uptime() * 1000,
-      send: bot.stat.send.group + bot.stat.send.private,
-      receive: bot.stat.recv.group + bot.stat.recv.private,
+      send: totalSend,
+      receive: totalReceive,
     },
     versions: {
       node: nodeVersion,
-      // icqq: oicqVersion,
       mioki: version,
-      napcat: versionInfo.app_version,
-      protocol: versionInfo.protocol_version,
+      napcat: mainVersionInfo.app_version,
+      protocol: mainVersionInfo.protocol_version,
     },
     system: {
       name: system.name || 'N/A',
@@ -150,18 +182,21 @@ export async function getMiokiStatus(bot: NapCat): Promise<MiokiStatus> {
 }
 
 export async function formatMiokiStatus(status: MiokiStatus): Promise<string> {
-  const { bot, plugins, stats, system, disk, cpu, memory, versions } = status
+  const { bots, plugins, stats, system, disk, cpu, memory, versions } = status
 
   const diskValid = disk.total > 0 && disk.free >= 0
   const diskDesc = `${disk.percent}%-${filesize(disk.used, { round: 1 })}/${filesize(disk.total, { round: 1 })}`
 
+  const botLines = bots.map((bot, index) => {
+    const namePrefix = bot.name ? `[${bot.name}] ` : ''
+    return `👤 ${namePrefix}${bot.nickname} (${bot.uin})\n   📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群 / 📮 收 ${localNum(bot.receive)} 发 ${localNum(bot.send)}`
+  }).join('\n')
+
   return `
 〓 🟢 mioki 状态 〓
-👤 ${bot.nickname}
-🆔 ${bot.uin}
-📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群
+${botLines}
 🧩 启用了 ${localNum(plugins.enabled)} 个插件，共 ${localNum(plugins.total)} 个
-📮 收 ${localNum(stats.receive)} 条，发 ${localNum(stats.send)} 条
+📮 总计: 收 ${localNum(stats.receive)} 条，发 ${localNum(stats.send)} 条
 🚀 ${filesize(memory.rss.used, { round: 1 })}/${memory.percent}%
 ⏳ 已运行 ${prettyMs(stats.uptime, { hideYear: true, secondsDecimalDigits: 0 })}
 🤖 mioki/${versions.mioki}-NapCat/${versions.napcat}

@@ -8,10 +8,12 @@ import * as utilsExports from './utils'
 import * as configExports from './config'
 import * as actionsExports from './actions'
 import * as servicesExports from './services'
+import { logger as miokiLogger } from './logger'
 
-import type { EventMap, Logger, NapCat } from 'napcat-sdk'
+import type { EventMap, Logger, NapCat, GroupMessageEvent, PrivateMessageEvent } from 'napcat-sdk'
 import type { ScheduledTask, TaskContext } from 'node-cron'
 import type { ConsolaInstance } from 'consola/core'
+import type { BotInfo } from './start'
 
 type Num = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
@@ -46,11 +48,59 @@ export function bindBot<Params extends Array<any> = any[], Return = any>(
 }
 
 /**
+ * 消息去重器
+ * 处理多个 bot 在同一个群时，同一消息只处理一次
+ */
+export class MessageDeduplicator {
+  private processedMessages = new Set<string>()
+  private maxSize = 1000
+
+  /**
+   * 生成消息唯一键
+   * 对于群消息：使用 group_id:user_id:time
+   * 对于私聊消息：使用 private:user_id:time
+   */
+  private getKey(event: GroupMessageEvent | PrivateMessageEvent): string {
+    if (event.message_type === 'group') {
+      return `group:${event.group_id}:${event.user_id}:${event.time}`
+    } else {
+      return `private:${event.user_id}:${event.time}`
+    }
+  }
+
+  isProcessed(event: GroupMessageEvent | PrivateMessageEvent): boolean {
+    return this.processedMessages.has(this.getKey(event))
+  }
+
+  markProcessed(event: GroupMessageEvent | PrivateMessageEvent): void {
+    // 清理旧数据，防止内存泄漏
+    if (this.processedMessages.size >= this.maxSize) {
+      const iterator = this.processedMessages.values()
+      const first = iterator.next()
+      if (!first.done) {
+        this.processedMessages.delete(first.value)
+      }
+    }
+    this.processedMessages.add(this.getKey(event))
+  }
+
+  clear(): void {
+    this.processedMessages.clear()
+  }
+}
+
+export const messageDeduplicator = new MessageDeduplicator()
+
+/**
  * Mioki 上下文对象，包含 Mioki 运行时的信息和方法
  */
 export interface MiokiContext extends Services, Configs, Utils, RemoveBotParam<Actions> {
-  /** 机器人实例 */
+  /** 当前处理事件的机器人实例 */
   bot: NapCat
+  /** 所有已连接的机器人实例列表 */
+  bots: BotInfo[]
+  /** 当前机器人 QQ 号 */
+  self_id: number
   /** 消息构造器 */
   segment: NapCat['segment']
   /** 通过域名获取 Cookies */
@@ -63,6 +113,8 @@ export interface MiokiContext extends Services, Configs, Utils, RemoveBotParam<A
   clears: Set<(() => any) | null | undefined>
   /** 日志器 */
   logger: Logger
+  /** 消息去重器 */
+  deduplicator: MessageDeduplicator
 }
 
 export const runtimePlugins: Map<
@@ -91,6 +143,27 @@ const buildRemovedActions = (bot: NapCat) =>
   Object.fromEntries(
     Object.entries(actionsExports).map(([k, v]) => [k, bindBot(bot, v as any)]),
   ) as RemoveBotParam<Actions>
+
+/**
+ * 检查事件是否是群消息事件
+ */
+function isGroupMessageEvent(event: any): event is GroupMessageEvent {
+  return event?.post_type === 'message' && event?.message_type === 'group'
+}
+
+/**
+ * 检查事件是否是私聊消息事件
+ */
+function isPrivateMessageEvent(event: any): event is PrivateMessageEvent {
+  return event?.post_type === 'message' && event?.message_type === 'private'
+}
+
+/**
+ * 检查事件是否是消息事件
+ */
+function isMessageEvent(event: any): event is GroupMessageEvent | PrivateMessageEvent {
+  return isGroupMessageEvent(event) || isPrivateMessageEvent(event)
+}
 
 export interface MiokiPlugin {
   /** 插件 ID，请保持唯一，一般为插件目录名称，框架内部通过这个识别不同的插件 */
@@ -136,7 +209,7 @@ export function getAbsPluginDir(defaultDir: string = 'plugins'): string {
 }
 
 export async function enablePlugin(
-  bot: NapCat,
+  bots: BotInfo[],
   plugin: MiokiPlugin,
   type: 'builtin' | 'external' = 'external',
 ): Promise<MiokiPlugin> {
@@ -144,63 +217,114 @@ export async function enablePlugin(
   const pluginName = plugin.name || 'null'
   const { name = pluginName, version = 'null', description = '-', setup = () => {} } = plugin
 
+  const mainBot = bots[0]?.napcat
+  if (!mainBot) {
+    throw new Error('没有可用的 bot 实例')
+  }
+
   try {
     const start = hrtime.bigint()
     const clears = new Set<() => any>()
     const userClears = new Set<(() => any) | undefined | null>()
 
-    const logger = (bot.logger as ConsolaInstance).withDefaults({
+    const logger = (miokiLogger as ConsolaInstance).withDefaults({
       tag: `plugin:${name}`,
-      args: [name],
     })
 
-    const context: MiokiContext = {
-      bot,
-      segment: bot.segment,
-      getCookie: bot.getCookie.bind(bot),
-      ...utilsExports,
-      ...configExports,
-      ...buildRemovedActions(bot),
-      logger,
-      services: servicesExports.services,
-      clears: userClears,
-      addService: (name: string, service: any, cover?: boolean) => {
-        const remove = servicesExports.addService(name, service, cover)
-        clears.add(remove)
-        return remove
-      },
-      handle: <EventName extends keyof EventMap>(
-        eventName: EventName,
-        handler: (event: EventMap[EventName]) => any,
-      ) => {
-        logger.debug(`Registering event handler for event: ${String(eventName)}`)
+    // 为每个 bot 创建上下文
+    const createContext = (botInfo: BotInfo): MiokiContext => {
+      const { napcat: bot, user_id: self_id } = botInfo
 
-        bot.on(eventName, handler)
+      return {
+        bot,
+        bots,
+        self_id,
+        segment: bot.segment,
+        getCookie: bot.getCookie.bind(bot),
+        ...utilsExports,
+        ...configExports,
+        ...buildRemovedActions(bot),
+        logger,
+        services: servicesExports.services,
+        clears: userClears,
+        deduplicator: messageDeduplicator,
+        addService: (name: string, service: any, cover?: boolean) => {
+          const remove = servicesExports.addService(name, service, cover)
+          clears.add(remove)
+          return remove
+        },
+        handle: <EventName extends keyof EventMap>(
+          eventName: EventName,
+          handler: (event: EventMap[EventName]) => any,
+        ) => {
+          logger.debug(`Registering event handler for event: ${String(eventName)}`)
 
-        const unsubscribe = () => {
-          logger.debug(`Unregistering event handler for event: ${String(eventName)}`)
-          bot.off(eventName, handler)
-        }
+          // 为每个 bot 注册事件处理器
+          const unsubscribes: (() => void)[] = []
 
-        clears.add(unsubscribe)
+          for (const info of bots) {
+            const wrappedHandler = (event: EventMap[EventName]) => {
+              if (isMessageEvent(event)) {
+                const messageEvent = event as GroupMessageEvent | PrivateMessageEvent
 
-        return unsubscribe
-      },
-      cron: (cronExpression, handler) => {
-        logger.debug(`Scheduling cron job: ${cronExpression}`)
-        const job = nodeCron.schedule(cronExpression, (now) => handler(context, now))
+                if (isPrivateMessageEvent(messageEvent)) {
+                  if (messageEvent.self_id !== info.user_id) {
+                    return // 不是发给这个 bot 的，跳过
+                  }
+                }
 
-        const clear = () => {
-          logger.debug(`Stopping cron job: ${cronExpression}`)
-          job.stop()
-        }
+                if (isGroupMessageEvent(messageEvent)) {
+                  // 这个消息是否已经被处理过
+                  if (messageDeduplicator.isProcessed(messageEvent)) {
+                    return // 已处理过
+                  }
+                  // 标记为已处理
+                  messageDeduplicator.markProcessed(messageEvent)
+                }
+              }
 
-        clears.add(clear)
-        return job
-      },
+              // 创建当前 bot 的上下文并调用 handler
+              const ctx = createContext(info)
+              handler(event as any)
+            }
+
+            info.napcat.on(eventName, wrappedHandler)
+
+            const unsubscribe = () => {
+              logger.debug(`Unregistering event handler for event: ${String(eventName)}`)
+              info.napcat.off(eventName, wrappedHandler)
+            }
+
+            unsubscribes.push(unsubscribe)
+          }
+
+          const clearAll = () => {
+            unsubscribes.forEach((fn) => fn())
+          }
+
+          clears.add(clearAll)
+
+          return clearAll
+        },
+        cron: (cronExpression, handler) => {
+          logger.debug(`Scheduling cron job: ${cronExpression}`)
+          const job = nodeCron.schedule(cronExpression, (now) => handler(createContext(botInfo), now))
+
+          const clear = () => {
+            logger.debug(`Stopping cron job: ${cronExpression}`)
+            job.stop()
+          }
+
+          clears.add(clear)
+          return job
+        },
+      }
     }
 
-    clears.add((await setup(context)) || (() => {}))
+    // 使用第一个 bot 的上下文进行初始化
+    const mainContext = createContext(bots[0])
+
+    clears.add((await setup(mainContext)) || (() => {}))
 
     runtimePlugins.set(name, {
       name,
@@ -224,7 +348,7 @@ export async function enablePlugin(
     const end = hrtime.bigint()
     const time = Math.round(Number(end - start)) / 1_000_000
 
-    bot.logger.info(
+    logger.info(
       `- 启用插件 ${colors.yellow(`[${typeDesc}]`)} ${colors.yellow(`${name}@${version}`)} => 耗时 ${colors.green(time.toFixed(2))} 毫秒`,
     )
   } catch (e: any) {
