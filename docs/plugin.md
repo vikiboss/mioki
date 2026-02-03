@@ -86,6 +86,7 @@ export default definePlugin({
 
 ### 多实例支持
 
+mioki支持连接多个 NapCat 实例。  
 当配置了多个 NapCat 实例时，上下文对象会提供额外的能力：
 
 ```ts
@@ -102,12 +103,6 @@ export default definePlugin({
       const groups = botInfo.napcat.getGroupList()
       ctx.logger.info(`${botInfo.name}: ${groups.length} 个群`)
     }
-
-    // 消息去重器（自动处理同群多 bot 重复消息）
-    ctx.handle('message.group', async (event) => {
-      // 不需要手动去重，框架已自动处理
-      ctx.logger.info(`收到群 ${event.group_id} 的消息`)
-    })
   },
 })
 ```
