@@ -19,7 +19,7 @@ export interface StartOptions {
 
 export interface BotInfo {
   napcat: NapCat
-  user_id: number
+  bot_id: number
   nickname: string
   app_name: string
   app_version: string
@@ -66,7 +66,7 @@ async function connectBot(
 
       resolve({
         napcat,
-        user_id,
+        bot_id: user_id,
         nickname,
         app_name,
         app_version,
@@ -260,7 +260,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
   const bots = connectedBotResults.filter((b): b is BotInfo => b !== null)
 
   for (const bot of bots) {
-    connectedBots.set(bot.user_id, bot)
+    connectedBots.set(bot.bot_id, bot)
   }
 
   if (bots.length === 0) {
@@ -272,12 +272,12 @@ export async function start(options: StartOptions = {}): Promise<void> {
     logger.warn(`${colors.yellow(napcatConfigs.length - bots.length)} 个 NapCat 实例连接失败`)
   }
 
-  const botNames = bots.map((b) => `${b.name}(${b.user_id})`).join(', ')
+  const botNames = bots.map((b) => `${b.name}(${b.bot_id})`).join(', ')
   logger.info(colors.green(`成功连接 ${bots.length} 个实例: ${botNames}`))
   logger.info(colors.dim('='.repeat(40)))
 
   const mainBot = bots[0].napcat
-  process.title = `mioki v${version} ${bots.map((b) => `${b.user_id}`).join(', ')}`
+  process.title = `mioki v${version} ${bots.map((b) => `${b.bot_id}`).join(', ')}`
 
   let lastNoticeTime = 0
 

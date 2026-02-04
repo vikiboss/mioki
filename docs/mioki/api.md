@@ -75,6 +75,16 @@ await ctx.bot.sendPrivateMsg(user_id, message)
 // 更多方法请参考 NapCat SDK 文档
 ```
 
+### ctx.bots
+
+所有已连接的 NapCat 实例。
+
+```ts
+ctx.bots[0].napcat //获取某个实例及方法（同 ctx.bot）
+ctx.bots[0].nickname // 某个实例的昵称
+ctx.bots[0].bot_id // 某个实例的 QQ 号
+```
+
 ### ctx.segment
 
 消息段构造器，用于构造各种类型的消息。

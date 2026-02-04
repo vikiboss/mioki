@@ -268,7 +268,7 @@ export async function enablePlugin(
                 const messageEvent = event as GroupMessageEvent | PrivateMessageEvent
 
                 if (isPrivateMessageEvent(messageEvent)) {
-                  if (messageEvent.self_id !== info.user_id) {
+                  if (messageEvent.self_id !== info.bot_id) {
                     return // 不是发给这个 bot 的，跳过
                   }
                 }
