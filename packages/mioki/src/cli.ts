@@ -124,12 +124,15 @@ interface CliOptions {
       "log_level": "info",
       "online_push": true,
       "error_push": true,
-      "napcat": {
-        "protocol": "${protocol}",
-        "port": ${port},
-        "host": "${host}",
-        "token": "${token}"
-      }
+      "napcat": [
+        {
+          "name": "bot1",
+          "protocol": "${protocol}",
+          "port": ${port},
+          "host": "${host}",
+          "token": "${token}"
+        }
+      ]
     },
     "scripts": {
       "start": "node app.ts"
