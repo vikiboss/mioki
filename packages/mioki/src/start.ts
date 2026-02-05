@@ -80,7 +80,7 @@ async function connectBot(config: cfg.NapCatInstanceConfig, index: number): Prom
 
 async function setupPlugins(napcat: NapCat, bots: ExtendedNapCat[]): Promise<void> {
   const plugin_dir = getAbsPluginDir()
-  const mainBot = bots[0] || napcat
+  const mainBot = napcat
 
   ensurePluginDir()
 
@@ -254,13 +254,13 @@ export async function start(options: StartOptions = {}): Promise<void> {
 
   const bots = connectedBotResults.filter((b): b is ExtendedNapCat => b !== null)
 
-  for (const bot of bots) {
-    connectedBots.set(bot.bot_id, bot)
-  }
-
   if (bots.length === 0) {
     logger.error('所有 NapCat 实例连接失败，框架无法启动')
     process.exit(1)
+  }
+
+  for (const bot of bots) {
+    connectedBots.set(bot.bot_id, bot)
   }
 
   if (bots.length < napcatConfigs.length) {

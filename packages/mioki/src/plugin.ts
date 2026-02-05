@@ -89,7 +89,7 @@ export class MessageDeduplicator {
   }
 }
 
-export const messageDeduplicator = new MessageDeduplicator()
+export const deduplicator = new MessageDeduplicator()
 
 /**
  * Mioki 上下文对象，包含 Mioki 运行时的信息和方法
@@ -245,7 +245,7 @@ export async function enablePlugin(
         logger,
         services: servicesExports.services,
         clears: userClears,
-        deduplicator: messageDeduplicator,
+        deduplicator: deduplicator,
         addService: (name: string, service: any, cover?: boolean) => {
           const remove = servicesExports.addService(name, service, cover)
           clears.add(remove)
@@ -273,17 +273,19 @@ export async function enablePlugin(
 
                 if (isGroupMessageEvent(messageEvent)) {
                   // 这个消息是否已经被处理过
-                  if (messageDeduplicator.isProcessed(messageEvent)) {
+                  if (deduplicator.isProcessed(messageEvent)) {
                     return // 已处理过
                   }
+
                   // 标记为已处理
-                  messageDeduplicator.markProcessed(messageEvent)
+                  deduplicator.markProcessed(messageEvent)
                 }
               }
 
               // 创建当前 bot 的上下文并调用 handler
-              const ctx = createContext(bot)
-              handler(event as any)
+              // const ctx = createContext(bot)
+
+              handler(event)
             }
 
             bot.on(eventName, wrappedHandler)

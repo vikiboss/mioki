@@ -4,14 +4,14 @@ packages:
 
 catalogs:
   dev:
-    '@types/node': ^22.19.3
+    '@types/node': ^22.19.8
     tsdown: ^0.18.4
     typescript: ^5.9.3
   react19:
-    '@types/react': ^19.2.7
+    '@types/react': ^19.2.11
     '@types/react-dom': ^19.2.3
-    react: ^19.2.3
-    react-dom: ^19.2.3
+    react: ^19.2.4
+    react-dom: ^19.2.4
 
 onlyBuiltDependencies:
   - sharp
