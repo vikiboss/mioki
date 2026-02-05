@@ -3,12 +3,12 @@ import path from 'node:path'
 import nodeCron from 'node-cron'
 import { hrtime } from 'node:process'
 import { colors } from 'consola/utils'
+import { logger as miokiLogger } from './logger'
 
 import * as utilsExports from './utils'
 import * as configExports from './config'
 import * as actionsExports from './actions'
 import * as servicesExports from './services'
-import { logger as miokiLogger } from './logger'
 
 import type { EventMap, Logger, NapCat, GroupMessageEvent, PrivateMessageEvent } from 'napcat-sdk'
 import type { ScheduledTask, TaskContext } from 'node-cron'

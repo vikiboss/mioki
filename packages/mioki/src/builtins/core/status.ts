@@ -81,10 +81,7 @@ export async function getMiokiStatus(bots: ExtendedNapCat[]): Promise<MiokiStatu
   const isInUnix = ['Linux', 'Darwin'].includes(osType)
   const arch = ArchMap[osArch] || osArch
 
-  const [osInfo, localPlugins] = await Promise.all([
-    systemInfo.osInfo(),
-    findLocalPlugins(),
-  ])
+  const [osInfo, localPlugins] = await Promise.all([systemInfo.osInfo(), findLocalPlugins()])
 
   const pluginCount = localPlugins.length + BUILTIN_PLUGINS.length
 
@@ -186,10 +183,12 @@ export async function formatMiokiStatus(status: MiokiStatus): Promise<string> {
   const diskValid = disk.total > 0 && disk.free >= 0
   const diskDesc = `${disk.percent}%-${filesize(disk.used, { round: 1 })}/${filesize(disk.total, { round: 1 })}`
 
-  const botLines = bots.map((bot, index) => {
-    const namePrefix = bot.name ? `[${bot.name}] ` : ''
-    return `👤 ${namePrefix}${bot.nickname} (${bot.uin})\n   📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群 / 📮 收 ${localNum(bot.receive)} 发 ${localNum(bot.send)}`
-  }).join('\n')
+  const botLines = bots
+    .map((bot, index) => {
+      const namePrefix = bot.name ? `[${bot.name}] ` : ''
+      return `👤 ${namePrefix}${bot.nickname} (${bot.uin})\n   📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群 / 📮 收 ${localNum(bot.receive)} 发 ${localNum(bot.send)}`
+    })
+    .join('\n')
 
   return `
 〓 🟢 mioki 状态 〓

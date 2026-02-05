@@ -16,7 +16,7 @@ import type {
   GroupMemberInfo,
   GroupMessageEvent,
   GroupWithInfo,
-  NapcatOptions,
+  NapCatOptions,
   NormalizedElementToSend,
   OptionalProps,
   PrivateMessageEvent,
@@ -28,7 +28,7 @@ import type {
 export const name: string = pkg.name
 export const version: string = pkg.version
 
-const DEFAULT_NAPCAT_OPTIONS: Required<OptionalProps<NapcatOptions>> = {
+const DEFAULT_NAPCAT_OPTIONS: Required<OptionalProps<NapCatOptions>> = {
   protocol: 'ws',
   host: 'localhost',
   port: 3001,
@@ -90,7 +90,7 @@ export class NapCat {
   public static ABSTRACT_LOGGER: Logger = ABSTRACT_LOGGER
   public static CONSOLE_LOGGER: Logger = CONSOLE_LOGGER
 
-  constructor(private readonly options: NapcatOptions = {}) {}
+  constructor(private readonly options: NapCatOptions = {}) {}
 
   /** 统计数据 */
   get stat(): Stat {
@@ -98,7 +98,7 @@ export class NapCat {
   }
 
   /** 配置项 */
-  get #config(): Required<NapcatOptions> {
+  get #config(): Required<NapCatOptions> {
     return {
       protocol: this.options.protocol || DEFAULT_NAPCAT_OPTIONS.protocol,
       host: this.options.host || DEFAULT_NAPCAT_OPTIONS.host,

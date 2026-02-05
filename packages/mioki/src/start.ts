@@ -26,10 +26,7 @@ export interface ExtendedNapCat extends NapCat {
 
 export const connectedBots: Map<number, ExtendedNapCat> = new Map()
 
-async function connectBot(
-  config: cfg.NapcatInstanceConfig,
-  index: number,
-): Promise<ExtendedNapCat | null> {
+async function connectBot(config: cfg.NapCatInstanceConfig, index: number): Promise<ExtendedNapCat | null> {
   const { protocol = 'ws', port = 3001, host = 'localhost', token = '', name } = config
   const botName = name || `Bot${index + 1}`
   const wsUrl = colors.green(`${protocol}://${host}:${port}${token ? '?access_token=***' : ''}`)
@@ -48,7 +45,9 @@ async function connectBot(
     })
 
     napcat.once('napcat.connected', ({ user_id, nickname, app_name, app_version }) => {
-      logger.info(`已连接到 ${colors.cyan(botName)}: ${colors.green(`${app_name}-v${app_version} ${nickname}(${user_id})`)}`)
+      logger.info(
+        `已连接到 ${colors.cyan(botName)}: ${colors.green(`${app_name}-v${app_version} ${nickname}(${user_id})`)}`,
+      )
 
       if (connectedBots.has(user_id)) {
         const existingBot = connectedBots.get(user_id)!
@@ -61,7 +60,9 @@ async function connectBot(
         resolve(null)
         return
       }
+
       const extendedNapCat = napcat as ExtendedNapCat
+
       extendedNapCat.bot_id = user_id
       extendedNapCat.app_name = app_name
       extendedNapCat.app_version = app_version
@@ -249,9 +250,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
   logger.info(colors.dim('='.repeat(40)))
   logger.info(`>>> 正在连接 ${napcatConfigs.length} 个 NapCat 实例...`)
 
-  const connectedBotResults = await Promise.all(
-    napcatConfigs.map((config, index) => connectBot(config, index)),
-  )
+  const connectedBotResults = await Promise.all(napcatConfigs.map((config, index) => connectBot(config, index)))
 
   const bots = connectedBotResults.filter((b): b is ExtendedNapCat => b !== null)
 
