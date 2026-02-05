@@ -23,14 +23,14 @@ export default definePlugin({
 
 ### 插件结构
 
-| 属性 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `name` | `string` | ✅ | 插件唯一标识，应与插件目录名一致 |
-| `version` | `string` | ❌ | 插件版本号，推荐使用语义化版本 |
-| `priority` | `number` | ❌ | 加载优先级，数值越小越先加载，默认 100 |
-| `description` | `string` | ❌ | 插件描述信息 |
-| `dependencies` | `string[]` | ❌ | 插件依赖（仅供参考，框架不处理） |
-| `setup` | `function` | ❌ | 插件初始化函数，接收上下文对象 |
+| 属性           | 类型       | 必填 | 说明                                   |
+| -------------- | ---------- | ---- | -------------------------------------- |
+| `name`         | `string`   | ✅    | 插件唯一标识，应与插件目录名一致       |
+| `version`      | `string`   | ❌    | 插件版本号，推荐使用语义化版本         |
+| `priority`     | `number`   | ❌    | 加载优先级，数值越小越先加载，默认 100 |
+| `description`  | `string`   | ❌    | 插件描述信息                           |
+| `dependencies` | `string[]` | ❌    | 插件依赖（仅供参考，框架不处理）       |
+| `setup`        | `function` | ❌    | 插件初始化函数，接收上下文对象         |
 
 ### 创建插件
 
@@ -54,8 +54,14 @@ plugins/
 export default definePlugin({
   name: 'demo',
   setup(ctx) {
-    // 机器人实例
+    // 机器人实例（当前处理事件的 bot）
     ctx.bot // NapCat 实例
+
+    // 所有已连接的 bot 列表
+    ctx.bots // ExtendedNapCat[]
+
+    // 当前 bot 的 QQ 号
+    ctx.self_id // number
 
     // 机器人信息
     ctx.bot.uin // QQ 号
@@ -67,10 +73,40 @@ export default definePlugin({
     // 日志器
     ctx.logger // 插件专属日志器
 
+    // 消息去重器
+    ctx.deduplicator // MessageDeduplicator
+
     // 配置信息
     ctx.botConfig // 框架配置
     ctx.isOwner(event) // 检查是否为主人
     ctx.isAdmin(event) // 检查是否为管理员
+  },
+})
+```
+
+### 多实例支持
+
+mioki 支持连接多个 NapCat 实例。  
+当配置了多个 NapCat 实例时，上下文对象会提供额外的能力：
+
+```ts
+export default definePlugin({
+  name: 'multi-bot',
+  setup(ctx) {
+    // 获取所有 bot 信息
+    ctx.bots.forEach((bot) => {
+      ctx.logger.info(`Bot: ${bot.nickname} (${bot.bot_id})`)
+      ctx.logger.info(`App: ${bot.app_name} v${bot.app_version}`)
+      if (bot.name) {
+        ctx.logger.info(`Name: ${bot.name}`)
+      }
+    })
+
+    // 遍历所有群
+    for (const bot of ctx.bots) {
+      const groups = await bot.getGroupList()
+      ctx.logger.info(`${bot.name || bot.nickname}: ${groups.length} 个群`)
+    }
   },
 })
 ```

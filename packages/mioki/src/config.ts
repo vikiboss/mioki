@@ -6,6 +6,30 @@ import { isNumber, unique } from './utils'
 import type { LogLevel } from 'napcat-sdk'
 
 /**
+ * NapCat 实例配置
+ */
+export interface NapCatInstanceConfig {
+  name?: string
+  protocol?: 'ws' | 'wss'
+  port?: number
+  host?: string
+  token?: string
+}
+
+export type NapCatConfig = NapCatInstanceConfig[]
+
+function isSingleNapCatConfig(config: NapCatInstanceConfig | NapCatInstanceConfig[]): config is NapCatInstanceConfig {
+  return !Array.isArray(config)
+}
+
+export function normalizeNapCatConfig(config: NapCatInstanceConfig | NapCatInstanceConfig[]): NapCatConfig {
+  if (isSingleNapCatConfig(config)) {
+    return [config] //向后兼容
+  }
+  return config
+}
+
+/**
  * mioki 配置
  */
 export interface MiokiConfig {
@@ -18,12 +42,7 @@ export interface MiokiConfig {
   log_level?: LogLevel
   plugins_dir?: string
   status_permission?: 'all' | 'admin-only'
-  napcat: {
-    protocol?: 'ws' | 'wss'
-    port?: number
-    host?: string
-    token: string
-  }
+  napcat: NapCatConfig // 为 mioki 添加多实例连接支持
 }
 
 /**
@@ -50,7 +69,10 @@ export function readMiokiConfig(): MiokiConfig {
   if (!config) throw new Error(`无法在 package.json 中找到 mioki 配置，请确认 package.json 文件中是否包含 mioki 字段`)
   if (!config.napcat) throw new Error(`mioki 配置中缺少 napcat 字段，请补全后重试`)
 
-  return readPackageJson().mioki
+  return {
+    ...config,
+    napcat: normalizeNapCatConfig(config.napcat),
+  }
 }
 
 /**

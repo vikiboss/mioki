@@ -12,7 +12,7 @@ export interface Stat {
   send: { group: number; private: number }
 }
 
-export interface NapcatOptions {
+export interface NapCatOptions {
   /** NapCat 访问令牌 */
   token?: string
   /** NapCat 服务器协议，默认为 ws */

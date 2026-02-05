@@ -75,6 +75,19 @@ await ctx.bot.sendPrivateMsg(user_id, message)
 // 更多方法请参考 NapCat SDK 文档
 ```
 
+### ctx.bots
+
+所有已连接的 NapCat 实例。
+
+```ts
+ctx.bots[0] // 获取第一个 NapCat 实例
+ctx.bots[0].bot_id // 某个实例的 QQ 号
+ctx.bots[0].app_name // 某个实例的应用名称
+ctx.bots[0].app_version // 某个实例的应用版本
+ctx.bots[0].name // 某个实例的自定义名称
+ctx.bots[0].sendGroupMsg(group_id, message) // 使用某个实例发送群消息
+```
+
 ### ctx.segment
 
 消息段构造器，用于构造各种类型的消息。
@@ -131,10 +144,10 @@ ctx.handle<EventName>(
 
 **参数：**
 
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
-| `eventName` | `string` | 事件名称 |
-| `handler` | `function` | 事件处理函数 |
+| 参数        | 类型       | 说明         |
+| ----------- | ---------- | ------------ |
+| `eventName` | `string`   | 事件名称     |
+| `handler`   | `function` | 事件处理函数 |
 
 **返回值：** 取消订阅函数
 
@@ -170,10 +183,10 @@ ctx.cron(
 
 **参数：**
 
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
-| `cronExpression` | `string` | cron 表达式 |
-| `handler` | `function` | 定时任务处理函数 |
+| 参数             | 类型       | 说明             |
+| ---------------- | ---------- | ---------------- |
+| `cronExpression` | `string`   | cron 表达式      |
+| `handler`        | `function` | 定时任务处理函数 |
 
 **Cron 表达式格式：**
 
@@ -281,11 +294,11 @@ ctx.match(
 
 **参数：**
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `event` | `MessageEvent` | - | 消息事件 |
-| `pattern` | `object` | - | 匹配模式对象 |
-| `quote` | `boolean` | `true` | 是否引用回复 |
+| 参数      | 类型           | 默认值 | 说明         |
+| --------- | -------------- | ------ | ------------ |
+| `event`   | `MessageEvent` | -      | 消息事件     |
+| `pattern` | `object`       | -      | 匹配模式对象 |
+| `quote`   | `boolean`      | `true` | 是否引用回复 |
 
 **MatchPattern 类型：**
 
@@ -299,11 +312,11 @@ type MatchPattern =
 
 #### 匹配模式 {#match-patterns}
 
-| 模式 | 语法 | 说明 |
-| --- | --- | --- |
-| 精确匹配 | `"关键词"` | 消息内容完全等于关键词时触发 |
-| 正则匹配 | `"/正则表达式/"` | 以 `/` 包裹的正则表达式 |
-| 通配符匹配 | `"前缀*后缀"` | 使用 `*` 匹配任意字符 |
+| 模式       | 语法             | 说明                         |
+| ---------- | ---------------- | ---------------------------- |
+| 精确匹配   | `"关键词"`       | 消息内容完全等于关键词时触发 |
+| 正则匹配   | `"/正则表达式/"` | 以 `/` 包裹的正则表达式      |
+| 通配符匹配 | `"前缀*后缀"`    | 使用 `*` 匹配任意字符        |
 
 #### 基础示例 {#match-basic}
 
@@ -506,11 +519,11 @@ ctx.noticeGroups(
 
 **参数：**
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `groupIdList` | `number[]` | - | 群号列表 |
-| `message` | `Sendable` | - | 消息内容 |
-| `delay` | `number` | 1000 | 每条消息间隔（毫秒） |
+| 参数          | 类型       | 默认值 | 说明                 |
+| ------------- | ---------- | ------ | -------------------- |
+| `groupIdList` | `number[]` | -      | 群号列表             |
+| `message`     | `Sendable` | -      | 消息内容             |
+| `delay`       | `number`   | 1000   | 每条消息间隔（毫秒） |
 
 ### ctx.noticeFriends()
 
@@ -892,11 +905,11 @@ ctx.addService(name: string, service: any, cover?: boolean): () => void
 
 **参数：**
 
-| 参数 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `name` | `string` | - | 服务名称 |
-| `service` | `any` | - | 服务实例或工厂函数 |
-| `cover` | `boolean` | `false` | 是否覆盖已有服务 |
+| 参数      | 类型      | 默认值  | 说明               |
+| --------- | --------- | ------- | ------------------ |
+| `name`    | `string`  | -       | 服务名称           |
+| `service` | `any`     | -       | 服务实例或工厂函数 |
+| `cover`   | `boolean` | `false` | 是否覆盖已有服务   |
 
 **返回值：** 移除服务的函数
 
@@ -935,16 +948,16 @@ const status = await ctx.services.getMiokiStatus()
 
 **返回值：** `MiokiStatus` 对象，包含以下信息：
 
-| 属性 | 说明 |
-| --- | --- |
-| `bot` | 机器人信息（QQ号、昵称、好友数、群数） |
-| `plugins` | 插件状态（启用数、总数） |
-| `stats` | 运行统计（运行时间、收发消息数） |
-| `versions` | 版本信息（Node、mioki、NapCat、协议） |
-| `system` | 系统信息（名称、版本、架构） |
-| `memory` | 内存使用情况 |
-| `disk` | 磁盘使用情况 |
-| `cpu` | CPU 信息及使用率 |
+| 属性       | 说明                                   |
+| ---------- | -------------------------------------- |
+| `bot`      | 机器人信息（QQ号、昵称、好友数、群数） |
+| `plugins`  | 插件状态（启用数、总数）               |
+| `stats`    | 运行统计（运行时间、收发消息数）       |
+| `versions` | 版本信息（Node、mioki、NapCat、协议）  |
+| `system`   | 系统信息（名称、版本、架构）           |
+| `memory`   | 内存使用情况                           |
+| `disk`     | 磁盘使用情况                           |
+| `cpu`      | CPU 信息及使用率                       |
 
 ### formatMiokiStatus()
 
@@ -965,8 +978,8 @@ ctx.services.customFormatMiokiStatus(formatter: StatusFormatter): void
 
 **参数：**
 
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
+| 参数        | 类型              | 说明             |
+| ----------- | ----------------- | ---------------- |
 | `formatter` | `StatusFormatter` | 自定义格式化函数 |
 
 **StatusFormatter 类型：**

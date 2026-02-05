@@ -53,7 +53,7 @@
     "node-cron": "^4.2.1",
     "pretty-ms": "^9.3.0",
     "string2argv": "^1.0.2",
-    "systeminformation": "^5.30.0"
+    "systeminformation": "^5.30.7"
   },
   "devDependencies": {
     "tsdown": "catalog:dev",
