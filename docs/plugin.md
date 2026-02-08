@@ -25,12 +25,12 @@ export default definePlugin({
 
 | 属性           | 类型       | 必填 | 说明                                   |
 | -------------- | ---------- | ---- | -------------------------------------- |
-| `name`         | `string`   | ✅    | 插件唯一标识，应与插件目录名一致       |
-| `version`      | `string`   | ❌    | 插件版本号，推荐使用语义化版本         |
-| `priority`     | `number`   | ❌    | 加载优先级，数值越小越先加载，默认 100 |
-| `description`  | `string`   | ❌    | 插件描述信息                           |
-| `dependencies` | `string[]` | ❌    | 插件依赖（仅供参考，框架不处理）       |
-| `setup`        | `function` | ❌    | 插件初始化函数，接收上下文对象         |
+| `name`         | `string`   | ✅   | 插件唯一标识，应与插件目录名一致       |
+| `version`      | `string`   | ❌   | 插件版本号，推荐使用语义化版本         |
+| `priority`     | `number`   | ❌   | 加载优先级，数值越小越先加载，默认 100 |
+| `description`  | `string`   | ❌   | 插件描述信息                           |
+| `dependencies` | `string[]` | ❌   | 插件依赖（仅供参考，框架不处理）       |
+| `setup`        | `function` | ❌   | 插件初始化函数，接收上下文对象         |
 
 ### 创建插件
 
@@ -73,8 +73,8 @@ export default definePlugin({
     // 日志器
     ctx.logger // 插件专属日志器
 
-    // 消息去重器
-    ctx.deduplicator // MessageDeduplicator
+    // 事件去重器
+    ctx.deduplicator // Deduplicator
 
     // 配置信息
     ctx.botConfig // 框架配置

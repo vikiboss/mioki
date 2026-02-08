@@ -64,9 +64,9 @@ npx mioki@latest \
 NapCat 实例，提供底层通信能力。
 
 ```ts
-ctx.bot.uin           // 机器人 QQ 号
-ctx.bot.nickname      // 机器人昵称
-ctx.bot.isOnline()    // 是否在线
+ctx.bot.uin // 机器人 QQ 号
+ctx.bot.nickname // 机器人昵称
+ctx.bot.isOnline() // 是否在线
 
 // 发送消息
 await ctx.bot.sendGroupMsg(group_id, message)
@@ -120,15 +120,15 @@ ctx.logger.error('错误信息')
 框架配置对象。
 
 ```ts
-ctx.botConfig.prefix      // 指令前缀
-ctx.botConfig.owners      // 主人列表
-ctx.botConfig.admins      // 管理员列表
-ctx.botConfig.plugins     // 启用的插件列表
-ctx.botConfig.log_level   // 日志级别
+ctx.botConfig.prefix // 指令前缀
+ctx.botConfig.owners // 主人列表
+ctx.botConfig.admins // 管理员列表
+ctx.botConfig.plugins // 启用的插件列表
+ctx.botConfig.log_level // 日志级别
 ctx.botConfig.plugins_dir // 插件目录
-ctx.botConfig.error_push  // 是否推送错误
+ctx.botConfig.error_push // 是否推送错误
 ctx.botConfig.online_push // 是否推送上线通知
-ctx.botConfig.napcat      // NapCat 配置
+ctx.botConfig.napcat // NapCat 配置
 ```
 
 ### ctx.handle()
@@ -138,16 +138,24 @@ ctx.botConfig.napcat      // NapCat 配置
 ```ts
 ctx.handle<EventName>(
   eventName: EventName,
-  handler: (event: EventMap[EventName]) => any
+  handler: (event: EventMap[EventName]) => any,
+  options?: HandleOptions
 ): () => void
 ```
 
 **参数：**
 
-| 参数        | 类型       | 说明         |
-| ----------- | ---------- | ------------ |
-| `eventName` | `string`   | 事件名称     |
-| `handler`   | `function` | 事件处理函数 |
+| 参数        | 类型            | 默认值 | 说明         |
+| ----------- | --------------- | ------ | ------------ |
+| `eventName` | `string`        | -      | 事件名称     |
+| `handler`   | `function`      | -      | 事件处理函数 |
+| `options`   | `HandleOptions` | -      | 处理器选项   |
+
+**HandleOptions：**
+
+| 选项          | 类型      | 默认值 | 说明                                                                             |
+| ------------- | --------- | ------ | -------------------------------------------------------------------------------- |
+| `deduplicate` | `boolean` | `true` | 是否启用自动去重。`true` 时同一事件只处理一次；`false` 时每个 bot 都会处理该事件 |
 
 **返回值：** 取消订阅函数
 
@@ -168,6 +176,17 @@ ctx.handle('message.group', async (e) => {
 ctx.handle('request.friend', async (e) => {
   await e.approve()
 })
+
+// 禁用去重
+ctx.handle(
+  'message.group',
+  async (e) => {
+    if (e.raw_message === '赞我') {
+      await ctx.bot.like(e.user_id)
+    }
+  },
+  { deduplicate: false },
+)
 ```
 
 ### ctx.cron()
@@ -227,6 +246,28 @@ ctx.cron('*/30 * * * * *', async () => {
 ```ts
 const timer = setInterval(() => {}, 1000)
 ctx.clears.add(() => clearInterval(timer))
+```
+
+### ctx.deduplicator
+
+事件去重器实例。框架已自动对消息、请求和群通知事件进行去重，一般情况下无需手动使用。
+
+```ts
+ctx.deduplicator.isProcessed(event: DeduplicableEvent): boolean
+ctx.deduplicator.markProcessed(event: DeduplicableEvent): void
+```
+
+**使用场景：**
+
+1. **自定义去重逻辑**（处理框架未自动去重的事件类型）：
+
+```ts
+ctx.handle('meta_event.heartbeat', async (e) => {
+  // 框架未对 meta_event 自动去重
+  if (ctx.deduplicator.isProcessed(e)) return
+  ctx.deduplicator.markProcessed(e)
+  // 处理心跳...
+})
 ```
 
 ### ctx.getCookie()
@@ -304,9 +345,11 @@ ctx.match(
 
 ```ts
 type MatchPattern =
-  | Sendable                                              // 直接回复的消息
-  | null | undefined | false                              // 不回复
-  | ((matches: RegExpMatchArray, event: E) => Sendable)   // 同步回调
+  | Sendable // 直接回复的消息
+  | null
+  | undefined
+  | false // 不回复
+  | ((matches: RegExpMatchArray, event: E) => Sendable) // 同步回调
   | ((matches: RegExpMatchArray, event: E) => Promise<Sendable>) // 异步回调
 ```
 
@@ -409,14 +452,11 @@ ctx.handle('message', (e) => {
     '/^签到$/': async (matches, event) => {
       const userId = event.user_id
       const result = await doSignIn(userId)
-      return [
-        ctx.segment.at(userId),
-        ctx.segment.text(`\n签到成功！获得 ${result.points} 积分`)
-      ]
+      return [ctx.segment.at(userId), ctx.segment.text(`\n签到成功！获得 ${result.points} 积分`)]
     },
 
     // 返回图片消息
-    '状态卡片': async () => {
+    状态卡片: async () => {
       const imageUrl = await renderStatusCard()
       return ctx.segment.image(imageUrl)
     },
@@ -424,14 +464,11 @@ ctx.handle('message', (e) => {
     // 返回组合消息
     '/^抽卡$/': async (matches, event) => {
       const card = await drawCard(event.user_id)
-      return [
-        ctx.segment.image(card.image),
-        ctx.segment.text(`\n恭喜获得: ${card.name} ⭐${card.rarity}`)
-      ]
+      return [ctx.segment.image(card.image), ctx.segment.text(`\n恭喜获得: ${card.name} ⭐${card.rarity}`)]
     },
 
     // 根据条件决定是否回复
-    '管理员测试': (matches, event) => {
+    管理员测试: (matches, event) => {
       if (!ctx.isOwnerOrAdmin(event)) {
         return null // 非管理员不回复
       }
@@ -446,10 +483,11 @@ ctx.handle('message', (e) => {
 :::
 
 ::: warning ⚠️ 注意事项
+
 - 正则表达式中的 `\` 需要双重转义，例如 `\\d` 匹配数字
 - 通配符 `*` 会被转换为 `.*`，匹配任意字符（包括空字符串）
 - 回调函数的 `matches` 参数在精确匹配时为 `null`
-:::
+  :::
 
 ### ctx.text()
 
@@ -725,7 +763,7 @@ interface MyData {
 }
 
 const db = await ctx.createDB<MyData>('data.json', {
-  defaultData: { count: 0, users: [] }
+  defaultData: { count: 0, users: [] },
 })
 
 // 读取数据
@@ -776,11 +814,15 @@ ctx.runWithErrorHandler(
 
 ```ts
 ctx.handle('message', async (e) => {
-  await ctx.runWithErrorHandler(async () => {
-    // 可能出错的代码
-    const result = await riskyOperation()
-    await e.reply(result)
-  }, e, '操作失败了，请稍后重试')
+  await ctx.runWithErrorHandler(
+    async () => {
+      // 可能出错的代码
+      const result = await riskyOperation()
+      await e.reply(result)
+    },
+    e,
+    '操作失败了，请稍后重试',
+  )
 })
 ```
 
@@ -808,11 +850,9 @@ ctx.createForwardMsg(
 **示例：**
 
 ```ts
-const forwardMsg = ctx.createForwardMsg([
-  '消息 1',
-  '消息 2',
-  ctx.segment.image('https://...'),
-], { nickname: '自定义昵称' })
+const forwardMsg = ctx.createForwardMsg(['消息 1', '消息 2', ctx.segment.image('https://...')], {
+  nickname: '自定义昵称',
+})
 
 await e.reply(forwardMsg)
 ```
@@ -918,7 +958,7 @@ ctx.addService(name: string, service: any, cover?: boolean): () => void
 ```ts
 // 添加服务
 ctx.addService('myService', {
-  doSomething: () => console.log('hello')
+  doSomething: () => console.log('hello'),
 })
 
 // 其他插件中使用
@@ -989,6 +1029,7 @@ type StatusFormatter = (status: MiokiStatus) => Awaitable<Arrayable<Sendable>>
 ```
 
 返回值可以是：
+
 - 字符串（文本消息）
 - 消息段对象（图片、语音等）
 - 消息段数组（组合多种类型）
@@ -1007,7 +1048,7 @@ export default definePlugin({
 💾 内存: ${status.memory.percent}%
 🔌 插件: ${status.plugins.enabled}/${status.plugins.total}`
     })
-  }
+  },
 })
 ```
 
@@ -1020,7 +1061,7 @@ export default definePlugin({
       const imageUrl = await renderStatusImage(status)
       return ctx.segment.image(imageUrl)
     })
-  }
+  },
 })
 ```
 
@@ -1030,23 +1071,21 @@ export default definePlugin({
   setup(ctx) {
     ctx.services.customFormatMiokiStatus(async (status) => {
       const image = await renderStatusImage(status)
-      return [
-        ctx.segment.image(image),
-        ctx.segment.text(`\n详细信息: ${status.bot.nickname}`)
-      ]
+      return [ctx.segment.image(image), ctx.segment.text(`\n详细信息: ${status.bot.nickname}`)]
     })
-  }
+  },
 })
 ```
 
 :::
 
 ::: tip 💡 使用场景
+
 - **自定义文本格式**：调整状态信息的展示样式和内容
 - **图片状态卡片**：结合渲染插件生成美观的状态图片
 - **多语言支持**：根据配置返回不同语言的状态信息
 - **隐藏敏感信息**：过滤掉不想展示的系统信息
-:::
+  :::
 
 ## 下一步 {#next-steps}
 
