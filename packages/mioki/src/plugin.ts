@@ -429,6 +429,19 @@ export async function enablePlugin(
                 }
               }
 
+              // 过滤来自连接实例的事件
+              const e = event as Record<string, any>
+              const senderUserId = e.user_id
+              const senderOperatorId = e.operator_id
+
+              // 检查发送者是否为连接的实例
+              const isFromConnectedBot = senderUserId && bots.some((b) => b.bot_id === senderUserId)
+              const isFromConnectedBotOperator = senderOperatorId && bots.some((b) => b.bot_id === senderOperatorId)
+
+              if (isFromConnectedBot || isFromConnectedBotOperator) {
+                return
+              }
+
               // 根据选项决定是否去重
               if (deduplicate && isDeduplicableEvent(event)) {
                 if (deduplicator.isProcessed(event, dedupeScope)) {
