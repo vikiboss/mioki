@@ -65,6 +65,10 @@ CLI 会依次引导你完成项目名称、NapCat 连接配置、权限设置等
 | `status_permission` | `string`       | `"all"`       | 状态命令权限：`admin-only` 仅管理可用，默认所有人   |
 | `napcat`            | `NapCatConfig` | -             | NapCat 实例配置，支持多个实例                       |
 
+::: tip 配置项在 package.json 里不方便?
+mioki 在框架启动时提供了选项，用户可以自行传入配置所在目录。详见[mioki API](/mioki/api)
+:::
+
 #### NapCat 配置（NapCatConfig）
 
 ```json
