@@ -11,7 +11,18 @@ import * as configExports from './config'
 import * as actionsExports from './actions'
 import * as servicesExports from './services'
 
-import type { EventMap, Logger, NapCat, GroupMessageEvent, PrivateMessageEvent } from 'napcat-sdk'
+import type {
+  EventMap,
+  Logger,
+  NapCat,
+  GroupMessageEvent,
+  PrivateMessageEvent,
+  RequestEvent,
+  MessageEvent,
+  NoticeEvent,
+  GroupNoticeEvent,
+  FriendNoticeEvent,
+} from 'napcat-sdk'
 import type { ScheduledTask, TaskContext } from 'node-cron'
 import type { ConsolaInstance } from 'consola/core'
 import type { ExtendedNapCat } from './start'
@@ -53,24 +64,11 @@ export function bindBot<Params extends Array<any> = any[], Return = any>(
  */
 export type DeduplicableEvent =
   // 消息事件
-  | GroupMessageEvent
-  | PrivateMessageEvent
+  | MessageEvent
   // 请求事件
-  | EventMap['request.friend']
-  | EventMap['request.group.add']
-  | EventMap['request.group.invite']
-  // 群通知事件
-  | EventMap['notice.group.increase']
-  | EventMap['notice.group.decrease']
-  | EventMap['notice.group.admin']
-  | EventMap['notice.group.ban']
-  | EventMap['notice.group.poke']
-  | EventMap['notice.group.title']
-  | EventMap['notice.group.card']
-  | EventMap['notice.group.recall']
-  | EventMap['notice.group.upload']
-  | EventMap['notice.group.reaction']
-  | EventMap['notice.group.essence']
+  | RequestEvent
+  // 通知事件
+  | NoticeEvent
 
 /**
  * 去重器
@@ -83,8 +81,7 @@ export class Deduplicator {
   /**
    * 获取事件类型键
    */
-  private getEventTypeKey(event: DeduplicableEvent): string {
-    const e = event as Record<string, any>
+  private getEventTypeKey(e: DeduplicableEvent): string {
     const { post_type } = e
 
     if (post_type === 'message') {
@@ -108,52 +105,51 @@ export class Deduplicator {
     return 'unknown'
   }
 
-  private getGroupMessageKey(e: Record<string, any>): string {
-    const groupId = e.group_id ?? ''
-    const userId = e.user_id ?? ''
-    const time = e.time ?? ''
-    const raw = e.raw_message ?? ''
+  private getGroupMessageKey(e: GroupMessageEvent): string {
+    const groupId = e.group_id ?? '_'
+    const userId = e.user_id ?? '_'
+    const time = e.time ?? '_'
+    const raw = e.raw_message ?? '_'
     const contentHash = crypto.createHash('md5').update(raw).digest('hex')
     return `msg:group:${groupId}:${userId}:${time}:${contentHash}`
   }
 
-  private getNoticeGroupKey(e: Record<string, any>): string {
-    const typeKey = this.getEventTypeKey(e as DeduplicableEvent)
-    const groupId = e.group_id ?? ''
-    const userId = e.user_id ?? ''
-    const operatorId = e.operator_id ?? ''
-    const targetId = e.target_id ?? ''
-    const subType = e.sub_type ?? ''
-    const actionType = e.action_type ?? e.actions_type ?? ''
-    const duration = e.duration ?? ''
-    const time = e.time ?? ''
+  private getNoticeGroupKey(e: GroupNoticeEvent): string {
+    const typeKey = this.getEventTypeKey(e)
+    const groupId = e.group_id ?? '_'
+    const userId = e.user_id ?? '_'
+    const operatorId = 'operator_id' in e ? (e.operator_id ?? '_') : '_'
+    const targetId = 'target_id' in e ? (e.target_id ?? '_') : '_'
+    const subType = e.sub_type ?? '_'
+    const actionType = 'action_type' in e ? (e.action_type ?? '_') : '_'
+    const duration = 'duration' in e ? (e.duration ?? '_') : '_'
+    const time = e.time ?? '_'
     return `${typeKey}:${groupId}:${userId}:${operatorId}:${targetId}:${subType}:${actionType}:${duration}:${time}`
   }
 
-  private getRequestKey(e: Record<string, any>): string {
-    const typeKey = this.getEventTypeKey(e as DeduplicableEvent)
-    const userId = e.user_id ?? ''
-    const groupId = e.group_id ?? ''
-    const time = e.time ?? ''
-    const comment = e.comment ?? ''
-    const commentHash = comment ? crypto.createHash('md5').update(comment).digest('hex') : ''
+  private getRequestKey(e: RequestEvent): string {
+    const typeKey = this.getEventTypeKey(e)
+    const userId = e.user_id ?? '_'
+    const groupId = 'group_id' in e ? (e.group_id ?? '_') : '_'
+    const time = e.time ?? '_'
+    const comment = e.comment ?? '_'
+    const commentHash = comment ? crypto.createHash('md5').update(comment).digest('hex') : '_'
     return `${typeKey}:${userId}:${groupId}:${time}:${commentHash}`
   }
 
   /**
    * 生成事件唯一键
    */
-  private getKey(event: DeduplicableEvent): string {
-    const e = event as Record<string, any>
-    const typeKey = this.getEventTypeKey(event)
+  private getKey(e: DeduplicableEvent): string {
+    const typeKey = this.getEventTypeKey(e)
     if (typeKey === 'msg:group') {
-      return this.getGroupMessageKey(e)
+      return this.getGroupMessageKey(e as GroupMessageEvent)
     }
     if (typeKey.startsWith('notice:group:')) {
-      return this.getNoticeGroupKey(e)
+      return this.getNoticeGroupKey(e as GroupNoticeEvent)
     }
     if (typeKey.startsWith('req:')) {
-      return this.getRequestKey(e)
+      return this.getRequestKey(e as RequestEvent)
     }
     return ''
   }
@@ -277,28 +273,28 @@ function isPrivateMessageEvent(event: any): event is PrivateMessageEvent {
 /**
  * 检查事件是否是消息事件
  */
-function isMessageEvent(event: any): event is GroupMessageEvent | PrivateMessageEvent {
+function isMessageEvent(event: any): event is MessageEvent {
   return isGroupMessageEvent(event) || isPrivateMessageEvent(event)
 }
 
 /**
  * 检查事件是否是请求事件
  */
-function isRequestEvent(event: any): event is EventMap['request'] {
+function isRequestEvent(event: any): event is RequestEvent {
   return event?.post_type === 'request'
 }
 
 /**
  * 检查事件是否是群通知事件
  */
-function isGroupNoticeEvent(event: any): event is EventMap['notice.group'] {
+function isGroupNoticeEvent(event: any): event is GroupNoticeEvent {
   return event?.post_type === 'notice' && event?.notice_type === 'group'
 }
 
 /**
  * 检查事件是否是好友通知事件
  */
-function isFriendNoticeEvent(event: any): event is EventMap['notice.friend'] {
+function isFriendNoticeEvent(event: any): event is FriendNoticeEvent {
   return event?.post_type === 'notice' && event?.notice_type === 'friend'
 }
 
@@ -421,16 +417,15 @@ export async function enablePlugin(
           const unsubscribes: (() => void)[] = []
 
           for (const bot of bots) {
-            const wrappedHandler = (event: EventMap[EventName]) => {
+            const wrappedHandler = (e: EventMap[EventName]) => {
               // 私聊消息过滤：只处理发给当前 bot 的
-              if (isPrivateMessageEvent(event)) {
-                if (event.self_id !== bot.bot_id) {
+              if (isPrivateMessageEvent(e)) {
+                if (e.self_id !== bot.bot_id) {
                   return
                 }
               }
 
               // 过滤来自连接实例的事件
-              const e = event as Record<string, any>
               const senderUserId = e.user_id
               const senderOperatorId = e.operator_id
 
@@ -443,14 +438,14 @@ export async function enablePlugin(
               }
 
               // 根据选项决定是否去重
-              if (deduplicate && isDeduplicableEvent(event)) {
-                if (deduplicator.isProcessed(event, dedupeScope)) {
+              if (deduplicate && isDeduplicableEvent(e)) {
+                if (deduplicator.isProcessed(e, dedupeScope)) {
                   return
                 }
-                deduplicator.markProcessed(event, dedupeScope)
+                deduplicator.markProcessed(e, dedupeScope)
               }
 
-              handler(event)
+              handler(e)
             }
 
             bot.on(eventName, wrappedHandler)
