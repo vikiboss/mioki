@@ -23,11 +23,12 @@
     "online_push": true,
     "error_push": true,
     "status_permission": "admin-only",
-    "napcat": {
+    "napcat": [{
+      "name": "bot1",
       "protocol": "ws",
       "port": 3333,
       "host": "localhost",
       "token": "cdc93b212524c0c0a0a162f1edec347a"
-    }
+    }]
   }
 }

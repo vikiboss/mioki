@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import nodeCron from 'node-cron'
@@ -10,7 +11,18 @@ import * as configExports from './config'
 import * as actionsExports from './actions'
 import * as servicesExports from './services'
 
-import type { EventMap, Logger, NapCat, GroupMessageEvent, PrivateMessageEvent } from 'napcat-sdk'
+import type {
+  EventMap,
+  Logger,
+  NapCat,
+  GroupMessageEvent,
+  PrivateMessageEvent,
+  RequestEvent,
+  MessageEvent,
+  NoticeEvent,
+  GroupNoticeEvent,
+  FriendNoticeEvent,
+} from 'napcat-sdk'
 import type { ScheduledTask, TaskContext } from 'node-cron'
 import type { ConsolaInstance } from 'consola/core'
 import type { ExtendedNapCat } from './start'
@@ -48,48 +60,144 @@ export function bindBot<Params extends Array<any> = any[], Return = any>(
 }
 
 /**
- * 消息去重器
- * 处理多个 bot 在同一个群时，同一消息只处理一次
+ * 需要去重的事件类型
  */
-export class MessageDeduplicator {
-  private processedMessages = new Set<string>()
+export type DeduplicableEvent =
+  // 消息事件
+  | MessageEvent
+  // 请求事件
+  | RequestEvent
+  // 通知事件
+  | NoticeEvent
+
+/**
+ * 去重器
+ * 处理多个 bot 在相同场景下，同一事件只处理一次
+ */
+export class Deduplicator {
+  private processedEvents = new Set<string>()
   private maxSize = 1000
 
   /**
-   * 生成消息唯一键
-   * 对于群消息：使用 group_id:user_id:time
-   * 对于私聊消息：使用 private:user_id:time
+   * 获取事件类型键
    */
-  private getKey(event: GroupMessageEvent | PrivateMessageEvent): string {
-    if (event.message_type === 'group') {
-      return `group:${event.group_id}:${event.user_id}:${event.time}`
-    } else {
-      return `private:${event.user_id}:${event.time}`
+  private getEventTypeKey(e: DeduplicableEvent): string {
+    const { post_type } = e
+
+    if (post_type === 'message') {
+      return `msg:${e.message_type}`
     }
+
+    if (post_type === 'request') {
+      if (e.request_type === 'friend') {
+        return 'req:friend'
+      }
+      return `req:group:${e.sub_type ?? 'unknown'}`
+    }
+
+    if (post_type === 'notice') {
+      if (e.notice_type === 'group') {
+        return `notice:group:${e.sub_type}`
+      }
+      return `notice:${e.notice_type}:${e.sub_type}`
+    }
+
+    return 'unknown'
   }
 
-  isProcessed(event: GroupMessageEvent | PrivateMessageEvent): boolean {
-    return this.processedMessages.has(this.getKey(event))
+  private getGroupMessageKey(e: GroupMessageEvent): string {
+    const groupId = e.group_id ?? '_'
+    const userId = e.user_id ?? '_'
+    const time = e.time ?? '_'
+    const raw = e.raw_message ?? '_'
+    const contentHash = crypto.createHash('md5').update(raw).digest('hex')
+    return `msg:group:${groupId}:${userId}:${time}:${contentHash}`
   }
 
-  markProcessed(event: GroupMessageEvent | PrivateMessageEvent): void {
+  private getNoticeGroupKey(e: GroupNoticeEvent): string {
+    const typeKey = this.getEventTypeKey(e)
+    const groupId = e.group_id ?? '_'
+    const userId = e.user_id ?? '_'
+    const operatorId = 'operator_id' in e ? (e.operator_id ?? '_') : '_'
+    const targetId = 'target_id' in e ? (e.target_id ?? '_') : '_'
+    const subType = e.sub_type ?? '_'
+    const actionType = 'action_type' in e ? (e.action_type ?? '_') : '_'
+    const duration = 'duration' in e ? (e.duration ?? '_') : '_'
+    const time = e.time ?? '_'
+    return `${typeKey}:${groupId}:${userId}:${operatorId}:${targetId}:${subType}:${actionType}:${duration}:${time}`
+  }
+
+  private getRequestKey(e: RequestEvent): string {
+    const typeKey = this.getEventTypeKey(e)
+    const userId = e.user_id ?? '_'
+    const groupId = 'group_id' in e ? (e.group_id ?? '_') : '_'
+    const time = e.time ?? '_'
+    const comment = e.comment ?? '_'
+    const commentHash = comment ? crypto.createHash('md5').update(comment).digest('hex') : '_'
+    return `${typeKey}:${userId}:${groupId}:${time}:${commentHash}`
+  }
+
+  /**
+   * 生成事件唯一键
+   */
+  private getKey(e: DeduplicableEvent): string {
+    const typeKey = this.getEventTypeKey(e)
+    if (typeKey === 'msg:group') {
+      return this.getGroupMessageKey(e as GroupMessageEvent)
+    }
+    if (typeKey.startsWith('notice:group:')) {
+      return this.getNoticeGroupKey(e as GroupNoticeEvent)
+    }
+    if (typeKey.startsWith('req:')) {
+      return this.getRequestKey(e as RequestEvent)
+    }
+    return ''
+  }
+
+  /**
+   * 检查事件是否已处理过
+   * @param event
+   * @param scope
+   */
+  isProcessed(event: DeduplicableEvent, scope?: string): boolean {
+    const key = scope ? `${this.getKey(event)}:${scope}` : this.getKey(event)
+    return this.processedEvents.has(key)
+  }
+
+  /**
+   * 标记事件为已处理
+   * @param event
+   * @param scope 需与 isProcessed 一致
+   */
+  markProcessed(event: DeduplicableEvent, scope?: string): void {
+    const key = scope ? `${this.getKey(event)}:${scope}` : this.getKey(event)
     // 清理旧数据，防止内存泄漏
-    if (this.processedMessages.size >= this.maxSize) {
-      const iterator = this.processedMessages.values()
+    if (this.processedEvents.size >= this.maxSize) {
+      const iterator = this.processedEvents.values()
       const first = iterator.next()
       if (!first.done) {
-        this.processedMessages.delete(first.value)
+        this.processedEvents.delete(first.value)
       }
     }
-    this.processedMessages.add(this.getKey(event))
-  }
-
-  clear(): void {
-    this.processedMessages.clear()
+    this.processedEvents.add(key)
   }
 }
 
-export const deduplicator = new MessageDeduplicator()
+/**
+ * 消息去重器
+ * @deprecated 请使用 Deduplicator，它支持更多事件类型
+ */
+export class MessageDeduplicator extends Deduplicator {
+  isProcessed(event: GroupMessageEvent | PrivateMessageEvent): boolean {
+    return super.isProcessed(event)
+  }
+
+  markProcessed(event: GroupMessageEvent | PrivateMessageEvent): void {
+    super.markProcessed(event)
+  }
+}
+
+export const deduplicator = new Deduplicator()
 
 /**
  * Mioki 上下文对象，包含 Mioki 运行时的信息和方法
@@ -106,15 +214,19 @@ export interface MiokiContext extends Services, Configs, Utils, RemoveBotParam<A
   /** 通过域名获取 Cookies */
   getCookie: NapCat['getCookie']
   /** 注册事件处理器 */
-  handle: <EventName extends keyof EventMap>(eventName: EventName, handler: (event: EventMap[EventName]) => any) => void
+  handle: <EventName extends keyof EventMap>(
+    eventName: EventName,
+    handler: (event: EventMap[EventName]) => any,
+    options?: HandleOptions,
+  ) => () => void
   /** 注册定时任务 */
   cron: (cronExpression: string, handler: (ctx: MiokiContext, task: TaskContext) => any) => ScheduledTask
   /** 待清理的函数集合，在插件卸载时会被调用 */
   clears: Set<(() => any) | null | undefined>
   /** 日志器 */
   logger: Logger
-  /** 消息去重器 */
-  deduplicator: MessageDeduplicator
+  /** 事件去重器 */
+  deduplicator: Deduplicator
 }
 
 export const runtimePlugins: Map<
@@ -161,8 +273,47 @@ function isPrivateMessageEvent(event: any): event is PrivateMessageEvent {
 /**
  * 检查事件是否是消息事件
  */
-function isMessageEvent(event: any): event is GroupMessageEvent | PrivateMessageEvent {
+function isMessageEvent(event: any): event is MessageEvent {
   return isGroupMessageEvent(event) || isPrivateMessageEvent(event)
+}
+
+/**
+ * 检查事件是否是请求事件
+ */
+function isRequestEvent(event: any): event is RequestEvent {
+  return event?.post_type === 'request'
+}
+
+/**
+ * 检查事件是否是群通知事件
+ */
+function isGroupNoticeEvent(event: any): event is GroupNoticeEvent {
+  return event?.post_type === 'notice' && event?.notice_type === 'group'
+}
+
+/**
+ * 检查事件是否是好友通知事件
+ */
+function isFriendNoticeEvent(event: any): event is FriendNoticeEvent {
+  return event?.post_type === 'notice' && event?.notice_type === 'friend'
+}
+
+/**
+ * 检查事件是否需要去重
+ */
+function isDeduplicableEvent(event: any): event is DeduplicableEvent {
+  return isMessageEvent(event) || isRequestEvent(event) || isGroupNoticeEvent(event)
+}
+
+/**
+ * 事件处理器选项
+ */
+export interface HandleOptions {
+  /**
+   * 是否启用自动去重
+   * @default true
+   */
+  deduplicate?: boolean
 }
 
 export interface MiokiPlugin {
@@ -254,38 +405,47 @@ export async function enablePlugin(
         handle: <EventName extends keyof EventMap>(
           eventName: EventName,
           handler: (event: EventMap[EventName]) => any,
+          options: HandleOptions = {},
         ) => {
           logger.debug(`Registering event handler for event: ${String(eventName)}`)
+
+          const { deduplicate = true } = options
+          // 每个 handle 使用独立 scope
+          const dedupeScope = `${name}:${String(eventName)}:${crypto.randomUUID()}`
 
           // 为每个 bot 注册事件处理器
           const unsubscribes: (() => void)[] = []
 
           for (const bot of bots) {
-            const wrappedHandler = (event: EventMap[EventName]) => {
-              if (isMessageEvent(event)) {
-                const messageEvent = event as GroupMessageEvent | PrivateMessageEvent
-
-                if (isPrivateMessageEvent(messageEvent)) {
-                  if (messageEvent.self_id !== bot.bot_id) {
-                    return // 不是发给这个 bot 的，跳过
-                  }
-                }
-
-                if (isGroupMessageEvent(messageEvent)) {
-                  // 这个消息是否已经被处理过
-                  if (deduplicator.isProcessed(messageEvent)) {
-                    return // 已处理过
-                  }
-
-                  // 标记为已处理
-                  deduplicator.markProcessed(messageEvent)
+            const wrappedHandler = (e: EventMap[EventName]) => {
+              // 私聊消息过滤：只处理发给当前 bot 的
+              if (isPrivateMessageEvent(e)) {
+                if (e.self_id !== bot.bot_id) {
+                  return
                 }
               }
 
-              // 创建当前 bot 的上下文并调用 handler
-              // const ctx = createContext(bot)
+              // 过滤来自连接实例的事件
+              const senderUserId = e.user_id
+              const senderOperatorId = e.operator_id
 
-              handler(event)
+              // 检查发送者是否为连接的实例
+              const isFromConnectedBot = senderUserId && bots.some((b) => b.bot_id === senderUserId)
+              const isFromConnectedBotOperator = senderOperatorId && bots.some((b) => b.bot_id === senderOperatorId)
+
+              if (isFromConnectedBot || isFromConnectedBotOperator) {
+                return
+              }
+
+              // 根据选项决定是否去重
+              if (deduplicate && isDeduplicableEvent(e)) {
+                if (deduplicator.isProcessed(e, dedupeScope)) {
+                  return
+                }
+                deduplicator.markProcessed(e, dedupeScope)
+              }
+
+              handler(e)
             }
 
             bot.on(eventName, wrappedHandler)

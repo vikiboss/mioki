@@ -193,6 +193,36 @@ export default definePlugin({
 })
 ```
 
+### 多实例去重
+
+在连接多个 NapCat 实例的情况下，mioki 已经自动对消息进行了基本的去重处理。  
+包括：  
+- 消息事件 `message`
+- 请求事件 `request`
+- 群通知事件 `notice`
+
+你也可以在插件中自行决定是否需要使用自动去重：
+
+```ts
+export default definePlugin({
+  name: 'like-bot',
+  setup(ctx) {
+    // 禁用去重：每个 bot 都会执行点赞
+    ctx.handle(
+      'message.group',
+      async (event) => {
+        if (event.raw_message === '赞我') {
+          // 当前 bot 给发送者点赞
+          await ctx.bot.like(event.user_id)
+          ctx.logger.info(`Bot ${ctx.self_id} 给 ${event.user_id} 点赞`)
+        }
+      },
+      { deduplicate: false }, //标记事件不需要自动去重
+    )
+  },
+})
+```
+
 ## 消息匹配 {#message-matching}
 
 ### 基础匹配
