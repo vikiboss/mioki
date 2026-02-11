@@ -12,11 +12,9 @@ import { BUILTIN_PLUGINS } from './builtins'
 import { enablePlugin, ensurePluginDir, getAbsPluginDir, runtimePlugins } from './plugin'
 
 import type { MiokiPlugin } from './plugin'
-import type { MiokiConfig } from './config'
 
 export interface StartOptions {
   cwd?: string
-  config?: Partial<MiokiConfig>
   configFile?: string
 }
 
@@ -193,7 +191,6 @@ async function setupPlugins(napcat: NapCat, bots: ExtendedNapCat[]): Promise<voi
 
 export async function start(options: StartOptions = {}): Promise<void> {
   cfg.initConfig(options)
-
 
   process.title = `mioki v${version}`
 

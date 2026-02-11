@@ -108,8 +108,8 @@ export function readMiokiConfig(): MiokiConfig {
   }
 }
 
-export function initConfig(options: { config?: Partial<MiokiConfig>; configFile?: string; cwd?: string }) {
-  const { config, configFile, cwd } = options
+export function initConfig(options: { configFile?: string; cwd?: string }) {
+  const { configFile, cwd } = options
 
   if (cwd && cwd !== BOT_CWD.value) {
     updateBotCWD(cwd)
@@ -120,7 +120,6 @@ export function initConfig(options: { config?: Partial<MiokiConfig>; configFile?
   const finalConfig = {
     ...DEFAULT_MIOKI_CONFIG,
     ...(loaded || {}),
-    ...(config || {}),
   }
 
   finalConfig.napcat = normalizeNapCatConfig(finalConfig.napcat || [])
