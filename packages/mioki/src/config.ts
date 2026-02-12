@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { logger } from './logger'
-import { isNumber, unique, jiti } from './utils'
+import { isNumber, unique } from './utils'
 
 import type { LogLevel } from 'napcat-sdk'
 
@@ -52,83 +52,27 @@ export const BOT_CWD: { value: string } = {
   value: process.cwd(),
 }
 
-export let loadedConfigPath: string | null = null
+export function readPackageJson(): Record<'mioki' | (string & {}), any> {
+  if (!fs.existsSync(path.join(BOT_CWD.value, 'package.json')))
+    throw new Error(`无法在 ${BOT_CWD.value} 下找到 package.json 文件，请确认当前目录是否为机器人根目录`)
 
-const DEFAULT_MIOKI_CONFIG: MiokiConfig = {
-  owners: [],
-  admins: [],
-  plugins: [],
-  napcat: [],
-}
-
-export function readPackageJson(): { mioki?: MiokiConfig } & Record<string, any> {
-  const pkgPath = path.join(BOT_CWD.value, 'package.json')
-  if (!fs.existsSync(pkgPath)) return {}
-  return JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) || {}
+  return JSON.parse(fs.readFileSync(path.join(BOT_CWD.value, 'package.json'), 'utf-8')) || {}
 }
 
 export function writePackageJson(pkg: Record<string, any>): void {
   fs.writeFileSync(path.join(BOT_CWD.value, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8')
 }
 
-export function loadConfig(cwd: string = BOT_CWD.value, configFile?: string): MiokiConfig | null {
-  loadedConfigPath = null
-  if (configFile) {
-    const configPath = path.resolve(cwd, configFile)
-    if (fs.existsSync(configPath)) {
-      loadedConfigPath = configPath
-      if (configFile.endsWith('.json')) {
-        return JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-      }
-      return jiti(configPath)
-    }
-    logger.warn(`指定的配置文件 ${configPath} 不存在`)
-  }
-
-  const pkg = readPackageJson()
-  if (pkg.mioki) {
-    loadedConfigPath = path.join(cwd, 'package.json')
-    return pkg.mioki
-  }
-
-  return null
-}
-
 export function readMiokiConfig(): MiokiConfig {
-  const config = loadConfig() || DEFAULT_MIOKI_CONFIG
+  const config = readPackageJson().mioki
 
-  if (!config.napcat) {
-    config.napcat = []
-  }
+  if (!config) throw new Error(`无法在 package.json 中找到 mioki 配置，请确认 package.json 文件中是否包含 mioki 字段`)
+  if (!config.napcat) throw new Error(`mioki 配置中缺少 napcat 字段，请补全后重试`)
 
   return {
-    ...DEFAULT_MIOKI_CONFIG,
     ...config,
-    napcat: normalizeNapCatConfig(config.napcat || []),
+    napcat: normalizeNapCatConfig(config.napcat),
   }
-}
-
-export function initConfig(options: { config?: Partial<MiokiConfig>; configFile?: string; cwd?: string }) {
-  const { config, configFile, cwd } = options
-
-  if (cwd && cwd !== BOT_CWD.value) {
-    updateBotCWD(cwd)
-  }
-
-  const loaded = loadConfig(BOT_CWD.value, configFile)
-
-  const finalConfig = {
-    ...DEFAULT_MIOKI_CONFIG,
-    ...(loaded || {}),
-    ...(config || {}),
-  }
-
-  finalConfig.napcat = normalizeNapCatConfig(finalConfig.napcat || [])
-
-  Object.assign(botConfig, finalConfig)
-
-  botConfig.plugins = unique(botConfig.plugins).toSorted((prev, next) => prev.localeCompare(next))
-  botConfig.admins = unique(botConfig.admins).toSorted((prev, next) => prev - next)
 }
 
 /**
@@ -145,23 +89,12 @@ export const updateBotConfig = async (draftFn: (config: MiokiConfig) => any): Pr
   botConfig.plugins = unique(botConfig.plugins).toSorted((prev, next) => prev.localeCompare(next))
   botConfig.admins = unique(botConfig.admins).toSorted((prev, next) => prev - next)
 
-  if (loadedConfigPath && loadedConfigPath.endsWith('package.json')) {
-    const pkg = readPackageJson()
-    pkg.mioki = structuredClone(botConfig)
-    writePackageJson(pkg)
-    logger.info(`检测到配置变动，已同步至 package.json 文件`)
-  } else if (loadedConfigPath && loadedConfigPath.endsWith('.json')) {
-    fs.writeFileSync(loadedConfigPath, JSON.stringify(botConfig, null, 2), 'utf-8')
-    logger.info(`检测到配置变动，已同步至 ${path.basename(loadedConfigPath)} 文件`)
-  } else if (!loadedConfigPath) {
-    // No config file found initially, default to creating/updating package.json
-    const pkg = readPackageJson()
-    pkg.mioki = structuredClone(botConfig)
-    writePackageJson(pkg)
-    logger.info(`检测到配置变动，已同步至 package.json 文件`)
-  } else {
-    logger.warn(`配置文件 ${loadedConfigPath} 不支持自动写入，请手动更新配置`)
-  }
+  const pkg = readPackageJson()
+  pkg.mioki = structuredClone(botConfig)
+
+  writePackageJson(pkg)
+
+  logger.info(`检测到配置变动，已同步至 package.json 文件`)
 }
 
 /**

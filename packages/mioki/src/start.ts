@@ -12,12 +12,9 @@ import { BUILTIN_PLUGINS } from './builtins'
 import { enablePlugin, ensurePluginDir, getAbsPluginDir, runtimePlugins } from './plugin'
 
 import type { MiokiPlugin } from './plugin'
-import type { MiokiConfig } from './config'
 
 export interface StartOptions {
   cwd?: string
-  config?: Partial<MiokiConfig>
-  configFile?: string
 }
 
 export interface ExtendedNapCat extends NapCat {
@@ -192,8 +189,11 @@ async function setupPlugins(napcat: NapCat, bots: ExtendedNapCat[]): Promise<voi
 }
 
 export async function start(options: StartOptions = {}): Promise<void> {
-  cfg.initConfig(options)
+  const { cwd = process.cwd() } = options
 
+  if (cwd !== cfg.BOT_CWD.value) {
+    cfg.updateBotCWD(path.resolve(cwd))
+  }
 
   process.title = `mioki v${version}`
 

@@ -55,26 +55,6 @@ npx mioki@latest \
 使用 `npx mioki --help` 可随时查看帮助信息。
 :::
 
-## 核心 API {#core-api}
-
-### start()
-
-启动 mioki 机器人。
-
-**示例：**
-
-```ts
-// 基本启动
-require('mioki').start()
-
-// 指定工作目录
-require('mioki').start({ cwd: __dirname })
-
-// 指定配置文件
-require('mioki').start({ configFile: './config/mioki.json' })
-
-```
-
 ## 上下文对象 {#context}
 
 插件的 `setup` 函数接收一个上下文对象 `ctx`，包含以下属性和方法。
