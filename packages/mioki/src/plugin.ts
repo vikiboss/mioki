@@ -114,6 +114,15 @@ export class Deduplicator {
     return `msg:group:${groupId}:${userId}:${time}:${contentHash}`
   }
 
+  private getPrivateMessageKey(e: PrivateMessageEvent): string {
+    const userId = e.user_id ?? '_'
+    const targetId = e.target_id ?? '_'
+    const time = e.time ?? '_'
+    const raw = e.raw_message ?? '_'
+    const contentHash = crypto.createHash('md5').update(raw).digest('hex')
+    return `msg:private:${userId}:${targetId}:${time}:${contentHash}`
+  }
+
   private getNoticeGroupKey(e: GroupNoticeEvent): string {
     const typeKey = this.getEventTypeKey(e)
     const groupId = e.group_id ?? '_'
@@ -144,6 +153,9 @@ export class Deduplicator {
     const typeKey = this.getEventTypeKey(e)
     if (typeKey === 'msg:group') {
       return this.getGroupMessageKey(e as GroupMessageEvent)
+    }
+    if (typeKey === 'msg:private') {
+      return this.getPrivateMessageKey(e as PrivateMessageEvent)
     }
     if (typeKey.startsWith('notice:group:')) {
       return this.getNoticeGroupKey(e as GroupNoticeEvent)
