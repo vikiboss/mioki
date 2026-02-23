@@ -27,6 +27,8 @@ import type { ScheduledTask, TaskContext } from 'node-cron'
 import type { ConsolaInstance } from 'consola/core'
 import type { ExtendedNapCat } from './start'
 
+// 当前事件处理的 bot holder
+const currentBotHolder: { bot: ExtendedNapCat | null } = { bot: null }
 type Num = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 type Utils = typeof utilsExports
@@ -263,10 +265,22 @@ export const runtimePlugins: Map<
   }
 >()
 
-const buildRemovedActions = (bot: NapCat) =>
-  Object.fromEntries(
-    Object.entries(actionsExports).map(([k, v]) => [k, bindBot(bot, v as any)]),
-  ) as RemoveBotParam<Actions>
+const buildRemovedActions = (_bot: NapCat) => {
+  const handler = {
+    get: function (target: any, prop: string) {
+      if (prop === 'bindBot' || prop === 'getBot') {
+        return target[prop]
+      }
+      const fn = target[prop]
+      if (typeof fn === 'function') {
+        return (...args: any[]) => fn(currentBotHolder.bot || _bot, ...args)
+      }
+      return fn
+    },
+  }
+  const proxy = new Proxy(actionsExports, handler)
+  return proxy as RemoveBotParam<Actions>
+}
 
 /**
  * 检查事件是否是群消息事件
@@ -397,9 +411,13 @@ export async function enablePlugin(
     // 为每个 bot 创建上下文
     const createContext = (bot: ExtendedNapCat): MiokiContext => {
       return {
-        bot,
+        get bot() {
+          return currentBotHolder.bot || bot
+        },
         bots,
-        self_id: bot.bot_id,
+        get self_id() {
+          return currentBotHolder.bot?.bot_id || bot.bot_id
+        },
         segment: bot.segment,
         getCookie: bot.getCookie.bind(bot),
         ...utilsExports,
@@ -457,7 +475,14 @@ export async function enablePlugin(
                 deduplicator.markProcessed(e, dedupeScope)
               }
 
-              handler(e)
+              // 设置当前 bot 并执行 handler
+              const prevBot = currentBotHolder.bot
+              currentBotHolder.bot = bot
+              try {
+                handler(e)
+              } finally {
+                currentBotHolder.bot = prevBot
+              }
             }
 
             bot.on(eventName, wrappedHandler)
