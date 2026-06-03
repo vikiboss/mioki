@@ -182,23 +182,23 @@ export async function formatMiokiStatus(status: MiokiStatus): Promise<string> {
 
   const botLines = bots
     .map((bot) => {
-      return `👤 ${bot.nickname} (${bot.uin})\n   📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群 / 📮 收 ${localNum(bot.receive)} 发 ${localNum(bot.send)}`
+      return `👤${bot.nickname}(${bot.uin})\n📋${localNum(bot.friends)}好友/${localNum(bot.groups)}群/📮收${localNum(bot.receive)}发${localNum(bot.send)}`
     })
     .join('\n')
 
-  const statsLine = bots.length > 1 ? `\n📮 总计: 收 ${localNum(stats.receive)} 条，发 ${localNum(stats.send)} 条` : ''
+  const statsLine = bots.length > 1 ? `\n📮总计:收${localNum(stats.receive)}条，发${localNum(stats.send)}条` : ''
 
   return `
-〓 🟢 mioki 状态 〓
+〓🟢mioki状态〓
 ${botLines}
-🧩 启用了 ${localNum(plugins.enabled)} 个插件，共 ${localNum(plugins.total)} 个${statsLine}
-🚀 ${filesize(memory.rss.used, { round: 1 })}/${memory.percent}%
-⏳ 已运行 ${prettyMs(stats.uptime, { hideYear: true, secondsDecimalDigits: 0 })}
-🤖 mioki/${versions.mioki}-NapCat/${versions.napcat}
-🖥️ ${system.name.split(' ')[0]}/${system.version.split('.')[0]}-${system.name}-node/${versions.node.split('.')[0]}
-📊 ${memory.percent}%-${filesize(memory.used, { base: 2, round: 1 })}/${filesize(memory.total, { base: 2, round: 1 })}
-🧮 ${cpu.percent}%-${cpu.name}-${cpu.count}核
-${diskValid ? `💾 ${diskDesc}` : ''}
+🧩启用了${localNum(plugins.enabled)}个插件，共${localNum(plugins.total)}个${statsLine}
+🚀${filesize(memory.rss.used, { round: 1 })}/${memory.percent}%
+⏳已运行${prettyMs(stats.uptime, { hideYear: true, secondsDecimalDigits: 0 })}
+🤖mioki/${versions.mioki}-NapCat/${versions.napcat}
+🖥️${system.name.split(' ')[0]}/${system.version.split('.')[0]}-${system.name}-node/${versions.node.split('.')[0]}
+📊${memory.percent}%-${filesize(memory.used, { base: 2, round: 1 })}/${filesize(memory.total, { base: 2, round: 1 })}
+🧮${cpu.percent}%-${cpu.name}-${cpu.count}核
+${diskValid ? `💾${diskDesc}` : ''}
   `.trim()
 }
 
