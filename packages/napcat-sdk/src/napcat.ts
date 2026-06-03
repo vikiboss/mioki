@@ -526,12 +526,11 @@ export class NapCat {
           break
         }
 
+        // TODO message_sent 是否有意义
         case 'message_sent': {
           if (data.message_type === 'private') {
-            this.#stat.send.private++
             data = this.#buildPrivateMessageEvent(data)
           } else {
-            this.#stat.send.group++
             data = this.#buildGroupMessageEvent(data)
           }
 
@@ -860,6 +859,7 @@ export class NapCat {
    * 发送私聊消息
    */
   sendPrivateMsg(user_id: number, sendable: Arrayable<Sendable>): Promise<{ message_id: number }> {
+    this.#stat.send.private++
     return this.api<{ message_id: number }>('send_private_msg', {
       user_id,
       message: this.normalizeSendable(sendable),
@@ -870,6 +870,7 @@ export class NapCat {
    * 发送群消息
    */
   sendGroupMsg(group_id: number, sendable: Arrayable<Sendable>): Promise<{ message_id: number }> {
+    this.#stat.send.group++
     return this.api<{ message_id: number }>('send_group_msg', {
       group_id,
       message: this.normalizeSendable(sendable),
