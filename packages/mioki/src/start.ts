@@ -61,6 +61,10 @@ async function connectBot(config: cfg.NapCatInstanceConfig, index: number): Prom
       extendedNapCat.app_name = app_name
       extendedNapCat.app_version = app_version
 
+      const removeFromRegistry = () => connectedBots.delete(user_id)
+      napcat.on('napcat.closing', removeFromRegistry)
+      napcat.on('napcat.reconnect_failed', removeFromRegistry)
+
       resolve(extendedNapCat)
     })
 
