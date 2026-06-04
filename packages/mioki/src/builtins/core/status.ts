@@ -182,7 +182,7 @@ export async function formatMiokiStatus(status: MiokiStatus): Promise<string> {
 
   const botLines = bots
     .map((bot) => {
-      return `👤 ${bot.nickname} (${bot.uin})\n   📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群 / 📮 收 ${localNum(bot.receive)} 发 ${localNum(bot.send)}`
+      return `👤 ${bot.nickname} (${bot.uin})\n📋 ${localNum(bot.friends)} 好友 / ${localNum(bot.groups)} 群 / 📮 收 ${localNum(bot.receive)} 发 ${localNum(bot.send)}`
     })
     .join('\n')
 
