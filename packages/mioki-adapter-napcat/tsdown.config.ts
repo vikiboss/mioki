@@ -2,7 +2,7 @@ import { defineConfig, type UserConfig } from 'tsdown'
 
 const config: UserConfig = defineConfig({
   target: 'node24',
-  entry: ['src/index.ts', 'src/cli.ts'],
+  entry: ['src/index.ts'],
   tsconfig: './tsconfig.json',
   format: ['cjs', 'esm'],
   dts: true,
@@ -10,7 +10,7 @@ const config: UserConfig = defineConfig({
   treeshake: true,
   failOnWarn: false,
   cjsDefault: true,
-  external: [],
+  external: ['mioki', 'napcat-sdk'],
 })
 
 export default config

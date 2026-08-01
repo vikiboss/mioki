@@ -87,6 +87,9 @@ importers:
       mioki:
         specifier: workspace:*
         version: link:../packages/mioki
+      mioki-adapter-napcat:
+        specifier: workspace:*
+        version: link:../packages/mioki-adapter-napcat
 
   packages/mioki:
     dependencies:
@@ -111,22 +114,38 @@ importers:
       mri:
         specifier: ^1.2.0
         version: 1.2.0
-      napcat-sdk:
-        specifier: workspace:*
-        version: link:../napcat-sdk
       node-cron:
         specifier: ^4.2.1
-        version: 4.2.1
+        version: 4.6.0
       pretty-ms:
         specifier: ^9.3.0
         version: 9.3.0
       string2argv:
         specifier: ^1.0.2
         version: 1.0.2
-      systeminformation:
-        specifier: ^5.30.7
-        version: 5.30.7
     devDependencies:
+      '@types/node':
+        specifier: catalog:dev
+        version: 22.19.8
+      tsdown:
+        specifier: catalog:dev
+        version: 0.18.4(typescript@5.9.3)
+      typescript:
+        specifier: catalog:dev
+        version: 5.9.3
+
+  packages/mioki-adapter-napcat:
+    dependencies:
+      mioki:
+        specifier: workspace:*
+        version: link:../mioki
+      napcat-sdk:
+        specifier: workspace:*
+        version: link:../napcat-sdk
+    devDependencies:
+      '@types/node':
+        specifier: catalog:dev
+        version: 22.19.8
       tsdown:
         specifier: catalog:dev
         version: 0.18.4(typescript@5.9.3)
@@ -1583,9 +1602,9 @@ packages:
     resolution: {integrity: sha512-dBpDMdxv9Irdq66304OLfEmQ9tbNRFnFTuZiLo+bD+r332bBmMJ8GBLXklIXXgxd3+v9+KUnZaUR5PJMa75Gsg==}
     engines: {node: '>= 0.4.0'}
 
-  node-cron@4.2.1:
-    resolution: {integrity: sha512-lgimEHPE/QDgFlywTd8yTR61ptugX3Qer29efeyWw2rv259HtGBNn1vZVmp8lB9uo9wC0t/AT4iGqXxia+CJFg==}
-    engines: {node: '>=6.0.0'}
+  node-cron@4.6.0:
+    resolution: {integrity: sha512-Si/bzYiKRHOB8/a99T2+SDGN582ONDMSTlJr5oCkT6GtnqPjZ2s10eoQRYkW9ZHwjVxONL+W8Fb+qR0AHMQsdg==}
+    engines: {node: '>=20'}
 
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
@@ -1854,12 +1873,6 @@ packages:
   superjson@2.2.6:
     resolution: {integrity: sha512-H+ue8Zo4vJmV2nRjpx86P35lzwDT3nItnIsocgumgr0hHMQ+ZGq5vrERg9kJBo5AWGmxZDhzDo+WVIJqkB0cGA==}
     engines: {node: '>=16'}
-
-  systeminformation@5.30.7:
-    resolution: {integrity: sha512-33B/cftpaWdpvH+Ho9U1b08ss8GQuLxrWHelbJT1yw4M48Taj8W3ezcPuaLoIHZz5V6tVHuQPr5BprEfnBLBMw==}
-    engines: {node: '>=8.0.0'}
-    os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
-    hasBin: true
 
   tabbable@6.4.0:
     resolution: {integrity: sha512-05PUHKSNE8ou2dwIxTngl4EzcnsCDZGJ/iCLtDflR/SHB/ny14rXc+qU5P4mG9JkusiV7EivzY9Mhm55AzAvCg==}
@@ -3413,7 +3426,7 @@ snapshots:
 
   netmask@2.0.2: {}
 
-  node-cron@4.2.1: {}
+  node-cron@4.6.0: {}
 
   node-fetch-native@1.6.7: {}
 
@@ -3802,8 +3815,6 @@ snapshots:
   superjson@2.2.6:
     dependencies:
       copy-anything: 4.0.5
-
-  systeminformation@5.30.7: {}
 
   tabbable@6.4.0: {}
 

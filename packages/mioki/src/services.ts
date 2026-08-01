@@ -1,33 +1,30 @@
-import { logger } from './logger'
+import { createMiokiLogger } from './logger'
 
-import type { MiokiCoreServiceContrib } from './builtins/core'
+import type { Logger } from './logger'
 
-export interface MiokiServices extends Record<string, unknown>, MiokiCoreServiceContrib {}
+const services: Record<string, unknown> = {}
 
-const USER_SERVICE: MiokiServices = {} as MiokiServices
+export interface MiokiServices {
+  readonly [key: string]: unknown
+}
 
-/**
- * 服务，由其他插件贡献的方法、数据等
- */
-export const services: MiokiServices = USER_SERVICE
+export const getService = <T = unknown>(name: string): T | undefined => services[name] as T | undefined
 
-/**
- * 给 `Mioki` 添加公共服务，可用于插件间通信和共享数据
- *
- * 请注意合理设置插件的 `priority` 属性，以确保服务的正确加载顺序，`priority` 默认为 100，越小越先加载
- *
- * 建议需要调用 `addService` 的插件设置 `priority` 为 `10`
- */
-export function addService(name: string, service: any, cover: boolean = true): () => void {
-  logger.debug(`添加 mioki 服务: ${name} (覆盖: ${cover ? '是' : '否'})`)
-
-  if (cover || !USER_SERVICE[name]) {
-    USER_SERVICE[name] = service
+export const setService = <T = unknown>(name: string, value: T, cover: boolean = true): () => void => {
+  if (cover || !services[name]) {
+    services[name] = value
   }
-
   return () => {
-    logger.debug(`移除 mioki 服务: ${name}`)
-
-    USER_SERVICE[name] = undefined
+    services[name] = undefined
   }
 }
+
+export const addService = <T = unknown>(name: string, value: T, cover: boolean = true): (() => void) => {
+  const log = createMiokiLogger({ tag: 'services' })
+  log.debug(`注册服务: ${name} (覆盖: ${cover ? '是' : '否'})`)
+  return setService(name, value, cover)
+}
+
+export type ServiceFactory<T> = () => T
+
+export const serviceLogger: Logger = createMiokiLogger({ tag: 'services' })

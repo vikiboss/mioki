@@ -1,16 +1,13 @@
 {
-  "name": "mioki",
+  "name": "mioki-adapter-napcat",
   "type": "module",
-  "version": "0.16.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@10.26.0",
-  "description": "A platform-agnostic bot framework core, designed around adapter and plugin contracts.",
+  "description": "NapCat OneBot v11 adapter for mioki.",
   "keywords": [
-    "framework",
-    "bot"
+    "mioki",
+    "napcat"
   ],
-  "bin": {
-    "mioki": "./dist/cli.mjs"
-  },
   "engines": {
     "node": ">= 22.18.0"
   },
@@ -24,7 +21,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/vikiboss/mioki.git",
-    "directory": "packages/mioki"
+    "directory": "packages/mioki-adapter-napcat"
   },
   "scripts": {
     "dev": "tsdown -w",
@@ -37,19 +34,19 @@
     },
     "./package.json": "./package.json"
   },
+  "mioki": {
+    "type": "adapter",
+    "name": "napcat",
+    "apiVersion": 1,
+    "entry": "./dist/index.mjs"
+  },
   "author": "Viki <hi@viki.moe> (https://github.com/vikiboss)",
   "license": "MIT",
+  "peerDependencies": {
+    "mioki": "workspace:*"
+  },
   "dependencies": {
-    "consola": "^3.4.2",
-    "dayjs": "^1.11.19",
-    "dedent": "^1.7.1",
-    "filesize": "^11.0.13",
-    "jiti": "^2.6.1",
-    "lowdb": "^7.0.1",
-    "mri": "^1.2.0",
-    "node-cron": "^4.2.1",
-    "pretty-ms": "^9.3.0",
-    "string2argv": "^1.0.2"
+    "napcat-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:dev",

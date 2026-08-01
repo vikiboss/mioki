@@ -1,151 +1,147 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { logger } from './logger'
-import { isNumber, unique } from './utils'
 
-import type { LogLevel } from 'napcat-sdk'
+import type { AdapterName, PluginName, UserId } from './types'
+import type { LogLevel } from './logger'
 
-/**
- * NapCat 实例配置
- */
-export interface NapCatInstanceConfig {
-  name?: string // 已废弃
-  protocol?: 'ws' | 'wss'
-  port?: number
-  host?: string
-  token?: string
+export interface MiokiConfig {
+  prefix?: string
+  owners: UserId[]
+  admins: UserId[]
+  plugins: PluginName[]
+  plugins_dir?: string
+  log_level?: LogLevel
+  online_push?: boolean
+  error_push?: boolean
+  status_permission?: 'all' | 'admin-only'
+  adapters?: Record<AdapterName, unknown>
+  napcat?: unknown
 }
 
-export type NapCatConfig = NapCatInstanceConfig[]
-
-function isSingleNapCatConfig(config: NapCatInstanceConfig | NapCatInstanceConfig[]): config is NapCatInstanceConfig {
-  return !Array.isArray(config)
+export interface BotConfigJson {
+  mioki?: Record<string, unknown>
+  [key: string]: unknown
 }
 
-export function normalizeNapCatConfig(config: NapCatInstanceConfig | NapCatInstanceConfig[]): NapCatConfig {
-  if (isSingleNapCatConfig(config)) {
-    return [config] //向后兼容
+export const BOT_CWD: { value: string } = { value: process.cwd() }
+
+export const setBotCwd = (root: string): void => {
+  BOT_CWD.value = path.resolve(root)
+}
+
+export const readPackageJson = (): BotConfigJson => {
+  const file = path.join(BOT_CWD.value, 'package.json')
+  if (!fs.existsSync(file)) {
+    throw new Error(`无法在 ${BOT_CWD.value} 下找到 package.json 文件，请确认当前目录是否为机器人根目录`)
+  }
+  const raw = fs.readFileSync(file, 'utf-8')
+  try {
+    return JSON.parse(raw) as BotConfigJson
+  } catch {
+    throw new Error(`package.json 解析失败，请检查 JSON 格式`)
+  }
+}
+
+export const writePackageJson = (pkg: BotConfigJson): void => {
+  const file = path.join(BOT_CWD.value, 'package.json')
+  fs.writeFileSync(file, JSON.stringify(pkg, null, 2), 'utf-8')
+}
+
+export const normalizeOwners = (input: unknown): UserId[] => {
+  if (!Array.isArray(input)) return []
+  return input.map((v) => String(v) as UserId)
+}
+
+export const normalizeAdmins = (input: unknown): UserId[] => {
+  if (!Array.isArray(input)) return []
+  return input.map((v) => String(v) as UserId)
+}
+
+export const normalizePlugins = (input: unknown): PluginName[] => {
+  if (!Array.isArray(input)) return []
+  return input.map((v) => String(v) as PluginName)
+}
+
+export const readMiokiConfig = (): MiokiConfig => {
+  const raw = readPackageJson()
+  const rawMioki = raw.mioki
+  if (!rawMioki || typeof rawMioki !== 'object') {
+    throw new Error(`无法在 package.json 中找到 mioki 配置，请确认 package.json 文件中是否包含 mioki 字段`)
+  }
+  const config: MiokiConfig = {
+    ...(rawMioki as Partial<MiokiConfig>),
+    owners: normalizeOwners((rawMioki as { owners?: unknown }).owners),
+    admins: normalizeAdmins((rawMioki as { admins?: unknown }).admins),
+    plugins: normalizePlugins((rawMioki as { plugins?: unknown }).plugins),
+    prefix: typeof (rawMioki as { prefix?: unknown }).prefix === 'string' ? ((rawMioki as { prefix: string }).prefix) : '#',
+    plugins_dir: typeof (rawMioki as { plugins_dir?: unknown }).plugins_dir === 'string' ? ((rawMioki as { plugins_dir: string }).plugins_dir) : 'plugins',
+  }
+  if ((rawMioki as { log_level?: unknown }).log_level) {
+    config.log_level = (rawMioki as { log_level: LogLevel }).log_level
+  }
+  if ((rawMioki as { status_permission?: unknown }).status_permission) {
+    config.status_permission = (rawMioki as { status_permission: 'all' | 'admin-only' }).status_permission
+  }
+  config.online_push = Boolean((rawMioki as { online_push?: unknown }).online_push)
+  config.error_push = Boolean((rawMioki as { error_push?: unknown }).error_push)
+  if ((rawMioki as { adapters?: unknown }).adapters) {
+    config.adapters = (rawMioki as { adapters: Record<AdapterName, unknown> }).adapters
   }
   return config
 }
 
-/**
- * mioki 配置
- */
-export interface MiokiConfig {
-  prefix?: string
-  owners: number[]
-  admins: number[]
-  plugins: string[]
-  error_push?: boolean
-  online_push?: boolean
-  log_level?: LogLevel
-  plugins_dir?: string
-  status_permission?: 'all' | 'admin-only'
-  napcat: NapCatConfig // 为 mioki 添加多实例连接支持
+export interface RuntimeMiokiConfig extends MiokiConfig {}
+
+const DEFAULT_CONFIG: RuntimeMiokiConfig = {
+  owners: [],
+  admins: [],
+  plugins: [],
+  plugins_dir: 'plugins',
+  prefix: '#',
 }
 
-/**
- * 机器人根目录
- */
-export const BOT_CWD: { value: string } = {
-  value: process.cwd(),
-}
-
-export function readPackageJson(): Record<'mioki' | (string & {}), any> {
-  if (!fs.existsSync(path.join(BOT_CWD.value, 'package.json')))
-    throw new Error(`无法在 ${BOT_CWD.value} 下找到 package.json 文件，请确认当前目录是否为机器人根目录`)
-
-  return JSON.parse(fs.readFileSync(path.join(BOT_CWD.value, 'package.json'), 'utf-8')) || {}
-}
-
-export function writePackageJson(pkg: Record<string, any>): void {
-  fs.writeFileSync(path.join(BOT_CWD.value, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8')
-}
-
-export function readMiokiConfig(): MiokiConfig {
-  const config = readPackageJson().mioki
-
-  if (!config) throw new Error(`无法在 package.json 中找到 mioki 配置，请确认 package.json 文件中是否包含 mioki 字段`)
-  if (!config.napcat) throw new Error(`mioki 配置中缺少 napcat 字段，请补全后重试`)
-
-  return {
-    ...config,
-    napcat: normalizeNapCatConfig(config.napcat),
+const loadInitialConfig = (): RuntimeMiokiConfig => {
+  try {
+    return readMiokiConfig()
+  } catch {
+    return { ...DEFAULT_CONFIG }
   }
 }
 
-/**
- * `mioki` 框架相关配置
- */
-export const botConfig: MiokiConfig = readMiokiConfig()
+export let botConfig: RuntimeMiokiConfig = loadInitialConfig()
 
-/**
- * 更新 `mioki` 配置，同时同步更新本地配置文件
- */
-export const updateBotConfig = async (draftFn: (config: MiokiConfig) => any): Promise<void> => {
-  await draftFn(botConfig)
-
-  botConfig.plugins = unique(botConfig.plugins).toSorted((prev, next) => prev.localeCompare(next))
-  botConfig.admins = unique(botConfig.admins).toSorted((prev, next) => prev - next)
-
-  const pkg = readPackageJson()
-  pkg.mioki = structuredClone(botConfig)
-
-  writePackageJson(pkg)
-
-  logger.info(`检测到配置变动，已同步至 package.json 文件`)
+export const reloadMiokiConfig = (): RuntimeMiokiConfig => {
+  botConfig = readMiokiConfig()
+  return botConfig
 }
 
-/**
- * 更新机器人根目录
- */
-export const updateBotCWD = (root: string): void => {
-  BOT_CWD.value = root
-  logger.info(`机器人根目录已设置为 ${root}`)
+let writable = false
+
+export const setWritableConfig = (value: boolean): void => {
+  writable = value
 }
 
-/**
- * 是否是主人
- */
-export const isOwner = (id: number | { sender: { user_id: number } } | { user_id: number }): boolean => {
-  const owners = botConfig.owners
-
-  return isNumber(id)
-    ? owners.includes(id)
-    : 'sender' in id
-      ? owners.includes(id.sender.user_id)
-      : owners.includes(id.user_id)
+export const updateMiokiConfig = (draft: (config: RuntimeMiokiConfig) => void | Promise<void>): Promise<void> => {
+  return Promise.resolve(draft(botConfig)).then(() => {
+    if (!writable) return
+    const pkg = readPackageJson()
+    pkg.mioki = { ...(pkg.mioki as Record<string, unknown> | undefined), ...botConfig }
+    writePackageJson(pkg)
+  })
 }
 
-/**
- * 是否是管理员，注意: 主人不是管理员
- */
-export const isAdmin = (id: number | { sender: { user_id: number } } | { user_id: number }): boolean => {
-  const admins = botConfig.admins
-
-  return isNumber(id)
-    ? admins.includes(id)
-    : 'sender' in id
-      ? admins.includes(id.sender.user_id)
-      : admins.includes(id.user_id)
+export const isOwner = (id: UserId | string): boolean => {
+  const target = typeof id === 'string' ? id : id
+  return botConfig.owners.includes(target as UserId)
 }
 
-/**
- * 是否是主人或管理员
- */
-export const isOwnerOrAdmin = (id: number | { sender: { user_id: number } } | { user_id: number }): boolean => {
+export const isAdmin = (id: UserId | string): boolean => {
+  const target = typeof id === 'string' ? id : id
+  return botConfig.admins.includes(target as UserId)
+}
+
+export const isOwnerOrAdmin = (id: UserId | string): boolean => {
   return isOwner(id) || isAdmin(id)
 }
 
-/**
- * 是否有权限，即：主人或管理员
- */
-export const hasRight = (id: number | { sender: { user_id: number } } | { user_id: number }): boolean => {
-  return isOwnerOrAdmin(id)
-}
-
-/**
- * 是否在 PM2 中运行
- */
-export const isInPm2: boolean = Boolean('pm_id' in process.env || 'PM2_USAGE' in process.env)
+export const hasRight = (id: UserId | string): boolean => isOwnerOrAdmin(id)

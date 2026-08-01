@@ -1,0 +1,10 @@
+export { napcatAdapterDefinition, buildNoticeFromOneBot } from './adapter'
+export * from './bot'
+export * from './config'
+export * from './dedup'
+export * from './event'
+export * from './gateway'
+export * from './message'
+export * from './status'
+
+export { napcatAdapterDefinition as default } from './adapter'
