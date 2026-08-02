@@ -5,7 +5,7 @@ import { version } from '../../../package.json' with { type: 'json' }
 import { filesize, localNum, prettyMs } from '../../utils'
 
 import type { Bot } from '../../adapter'
-import type { AdapterName, AdapterStatus } from '../../types'
+import type { AdapterStatus } from '../../types'
 
 export type { AdapterStatus } from '../../types'
 
@@ -26,7 +26,7 @@ export interface BotStatus {
   bot_id: string
   nickname: string
   online: boolean
-  adapter: AdapterName
+  adapter: string
   friends?: number
   groups?: number
   send?: number
@@ -83,13 +83,13 @@ export type StatusProvider = (context: StatusProviderContext) => Promise<Adapter
 export interface MiokiCoreServiceContrib {
   getMiokiStatus(): Promise<MiokiStatus>
   formatMiokiStatus(status: MiokiStatus): Promise<string>
-  registerStatusProvider(adapter: AdapterName, provider: StatusProvider): () => void
+  registerStatusProvider(adapter: string, provider: StatusProvider): () => void
 }
 
-const statusProviders = new Map<AdapterName, StatusProvider>()
+const statusProviders = new Map<string, StatusProvider>()
 const statusFormatters = new Set<(status: MiokiStatus) => Promise<string> | string>()
 
-export const registerStatusProvider = (adapter: AdapterName, provider: StatusProvider): () => void => {
+export const registerStatusProvider = (adapter: string, provider: StatusProvider): () => void => {
   statusProviders.set(adapter, provider)
   return () => {
     statusProviders.delete(adapter)
@@ -155,7 +155,7 @@ const getDiskUsage = (): Promise<{ total: number; used: number; free: number; pe
 
 export interface BuildStatusOptions {
   readonly bots: readonly Bot[]
-  readonly adapters: readonly { readonly name: AdapterName; readonly version?: string }[]
+  readonly adapters: readonly { readonly name: string; readonly version?: string }[]
   readonly enabledPlugins: number
   readonly totalPlugins: number
   readonly systemInfoProvider?: () => Promise<{ distro: string; release: string }>

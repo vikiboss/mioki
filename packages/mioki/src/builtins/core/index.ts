@@ -1,7 +1,6 @@
 import { version } from '../../../package.json' with { type: 'json' }
 import { definePlugin } from '../../plugin'
 import { createCmd, dedent, unique } from '../../utils'
-import { asPluginName, asUserId } from '../../types'
 import { isEventOwner, isEventOwnerOrAdmin } from '../../runtime/mioki-context'
 import { buildMiokiStatus, formatMiokiStatus } from './status'
 
@@ -28,9 +27,9 @@ const core: MiokiPlugin = definePlugin({
     const statusAdminOnly = ctx.config.status_permission === 'admin-only'
 
     const collectBots = (): typeof ctx.bots => ctx.bots
-    const collectAdapters = (): { name: import('../../types').AdapterName; version?: string }[] => {
+    const collectAdapters = (): { name: string; version?: string }[] => {
       const seen = new Set<string>()
-      const list: { name: import('../../types').AdapterName; version?: string }[] = []
+      const list: { name: string; version?: string }[] = []
       for (const bot of ctx.bots) {
         if (seen.has(String(bot.adapter))) continue
         seen.add(String(bot.adapter))
@@ -142,7 +141,7 @@ const core: MiokiPlugin = definePlugin({
                 return
               }
               await ctx.updateConfig((c) => {
-                c.plugins = [...c.plugins, asPluginName(pluginName)]
+                c.plugins = [...c.plugins, pluginName]
               })
               await ev.reply(`插件 ${pluginName} 启用成功`)
               break
@@ -180,7 +179,7 @@ const core: MiokiPlugin = definePlugin({
                 return
               }
               await ctx.updateConfig((c) => {
-                c.plugins = [...c.plugins, asPluginName(pluginName)]
+                c.plugins = [...c.plugins, pluginName]
               })
               await ev.reply(`插件 ${pluginName} 已重载`)
               break
@@ -224,7 +223,7 @@ const core: MiokiPlugin = definePlugin({
                 await ev.reply('请指定主人 QQ/AT')
                 return
               }
-              const userId = asUserId(uid)
+              const userId = String(uid)
               if (ctx.config.owners.includes(userId)) {
                 await ev.reply(`主人 ${uid} 已存在`)
                 return
@@ -243,7 +242,7 @@ const core: MiokiPlugin = definePlugin({
                 await ev.reply('请指定主人 QQ/AT')
                 return
               }
-              const userId = asUserId(uid)
+              const userId = String(uid)
               if (userId === ctx.config.owners[0]) {
                 await ev.reply('不能删除第一主人')
                 return
@@ -266,7 +265,7 @@ const core: MiokiPlugin = definePlugin({
                 await ev.reply('请指定管理 QQ/AT')
                 return
               }
-              const userId = asUserId(uid)
+              const userId = String(uid)
               if (ctx.config.admins.includes(userId)) {
                 await ev.reply(`管理 ${uid} 已存在`)
                 return
@@ -285,7 +284,7 @@ const core: MiokiPlugin = definePlugin({
                 await ev.reply('请指定管理 QQ/AT')
                 return
               }
-              const userId = asUserId(uid)
+              const userId = String(uid)
               if (!ctx.config.admins.includes(userId)) {
                 await ev.reply(`管理 ${uid} 不存在`)
                 return

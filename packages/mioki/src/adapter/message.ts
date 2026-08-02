@@ -1,5 +1,3 @@
-import type { BotId, GroupId, MessageId, UserId } from '../types'
-
 export interface Attachment {
   readonly id?: string
   readonly url?: string
@@ -38,12 +36,12 @@ export interface MessageTarget {
   readonly type: string
   readonly id?: string
   readonly parent_id?: string
-  readonly user_id?: UserId
-  readonly group_id?: GroupId
+  readonly user_id?: string
+  readonly group_id?: string
 }
 
 export interface SentMessage {
-  readonly message_id?: MessageId
+  readonly message_id?: string
   readonly sent_at?: number
 }
 
@@ -121,10 +119,19 @@ export const segment = {
   at(target: string): MessageSegment {
     return new MessageSegmentImpl('at', { target })
   },
-  image(url: string, attachment?: Attachment): MessageSegment {
-    const data: Record<string, unknown> = { url }
-    if (attachment) data.attachment = attachment
-    return new MessageSegmentImpl('image', data, attachment)
+  image(file: string | Buffer, options: { local?: boolean } & Attachment = {}): MessageSegment {
+    const { local = false, ...attachment } = options
+    const data: Record<string, unknown> = {}
+    if (Buffer.isBuffer(file)) {
+      data.file = `base64://${file.toString('base64')}`
+    } else if (local) {
+      data.file = `file:///${file.replace(/^\s*(file:\/\/\/)+/, '')}`
+    } else {
+      data.url = file
+    }
+    const attrs = Object.keys(attachment).length > 0 ? attachment : undefined
+    if (attrs) data.attachment = attrs
+    return new MessageSegmentImpl('image', data, attrs)
   },
   reply(messageId: string): MessageSegment {
     return new MessageSegmentImpl('reply', { message_id: messageId })

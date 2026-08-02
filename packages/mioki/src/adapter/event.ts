@@ -7,14 +7,13 @@ import type {
   ReplyOptions,
   SentMessage,
 } from './message'
-import type { BotId, GroupId, MessageId, RequestId, UserId } from '../types'
 
 export interface EventIdentity {
   readonly adapter: string
-  readonly bot_id?: BotId
+  readonly bot_id?: string
   readonly source_id?: string
   readonly event_type: string
-  readonly message_id?: MessageId
+  readonly message_id?: string
   readonly timestamp?: number
   readonly native_event_id?: string
   readonly fingerprint?: string
@@ -25,23 +24,23 @@ export interface EventBase {
   readonly type: string
   readonly routes: readonly string[]
   readonly identity: EventIdentity
-  readonly self_id?: BotId
+  readonly self_id?: string
   readonly bot?: import('./bot').Bot
   readonly time?: number
   readonly raw?: unknown
 }
 
 export interface BotEventBase extends EventBase {
-  readonly self_id: BotId
+  readonly self_id: string
   readonly bot: import('./bot').Bot
 }
 
 export interface MessageEvent extends BotEventBase {
   readonly kind: 'message'
   readonly message_type: 'private' | 'group' | 'channel' | 'thread' | 'direct' | (string & {})
-  readonly user_id?: UserId
-  readonly group_id?: GroupId
-  readonly message_id?: MessageId
+  readonly user_id?: string
+  readonly group_id?: string
+  readonly message_id?: string
   readonly conversation?: ConversationRef
   readonly message: Message
   readonly is_to_me?: boolean
@@ -53,18 +52,18 @@ export interface NoticeEvent extends BotEventBase {
   readonly kind: 'notice'
   readonly notice_type?: string
   readonly sub_type?: string
-  readonly user_id?: UserId
-  readonly group_id?: GroupId
-  readonly operator_id?: UserId
+  readonly user_id?: string
+  readonly group_id?: string
+  readonly operator_id?: string
 }
 
 export interface RequestEvent extends BotEventBase {
   readonly kind: 'request'
   readonly request_type?: string
   readonly sub_type?: string
-  readonly user_id?: UserId
-  readonly group_id?: GroupId
-  readonly flag?: RequestId
+  readonly user_id?: string
+  readonly group_id?: string
+  readonly flag?: string
   readonly comment?: string
   approve(): Promise<void>
   reject(reason?: string): Promise<void>
@@ -99,7 +98,7 @@ export interface EventFactoryOptions<T extends MessageEvent | NoticeEvent | Requ
   readonly routes: readonly string[]
   readonly identity: EventIdentity
   readonly bot?: import('./bot').Bot
-  readonly self_id?: BotId
+  readonly self_id?: string
   readonly time?: number
   readonly raw?: unknown
 }

@@ -1,20 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import type { AdapterName, PluginName, UserId } from './types'
 import type { LogLevel } from './logger'
 
 export interface MiokiConfig {
   prefix?: string
-  owners: UserId[]
-  admins: UserId[]
-  plugins: PluginName[]
+  owners: string[]
+  admins: string[]
+  plugins: string[]
   plugins_dir?: string
   log_level?: LogLevel
   online_push?: boolean
   error_push?: boolean
   status_permission?: 'all' | 'admin-only'
-  adapters?: Record<AdapterName, unknown>
+  adapters?: Record<string, unknown>
   napcat?: unknown
 }
 
@@ -47,19 +46,19 @@ export const writePackageJson = (pkg: BotConfigJson): void => {
   fs.writeFileSync(file, JSON.stringify(pkg, null, 2), 'utf-8')
 }
 
-export const normalizeOwners = (input: unknown): UserId[] => {
+export const normalizeOwners = (input: unknown): string[] => {
   if (!Array.isArray(input)) return []
-  return input.map((v) => String(v) as UserId)
+  return input.map((v) => String(v) as string)
 }
 
-export const normalizeAdmins = (input: unknown): UserId[] => {
+export const normalizeAdmins = (input: unknown): string[] => {
   if (!Array.isArray(input)) return []
-  return input.map((v) => String(v) as UserId)
+  return input.map((v) => String(v) as string)
 }
 
-export const normalizePlugins = (input: unknown): PluginName[] => {
+export const normalizePlugins = (input: unknown): string[] => {
   if (!Array.isArray(input)) return []
-  return input.map((v) => String(v) as PluginName)
+  return input.map((v) => String(v) as string)
 }
 
 export const readMiokiConfig = (): MiokiConfig => {
@@ -85,7 +84,7 @@ export const readMiokiConfig = (): MiokiConfig => {
   config.online_push = Boolean((rawMioki as { online_push?: unknown }).online_push)
   config.error_push = Boolean((rawMioki as { error_push?: unknown }).error_push)
   if ((rawMioki as { adapters?: unknown }).adapters) {
-    config.adapters = (rawMioki as { adapters: Record<AdapterName, unknown> }).adapters
+    config.adapters = (rawMioki as { adapters: Record<string, unknown> }).adapters
   }
   return config
 }
@@ -130,18 +129,18 @@ export const updateMiokiConfig = (draft: (config: RuntimeMiokiConfig) => void | 
   })
 }
 
-export const isOwner = (id: UserId | string): boolean => {
+export const isOwner = (id: string): boolean => {
   const target = typeof id === 'string' ? id : id
-  return botConfig.owners.includes(target as UserId)
+  return botConfig.owners.includes(target as string)
 }
 
-export const isAdmin = (id: UserId | string): boolean => {
+export const isAdmin = (id: string): boolean => {
   const target = typeof id === 'string' ? id : id
-  return botConfig.admins.includes(target as UserId)
+  return botConfig.admins.includes(target as string)
 }
 
-export const isOwnerOrAdmin = (id: UserId | string): boolean => {
+export const isOwnerOrAdmin = (id: string): boolean => {
   return isOwner(id) || isAdmin(id)
 }
 
-export const hasRight = (id: UserId | string): boolean => isOwnerOrAdmin(id)
+export const hasRight = (id: string): boolean => isOwnerOrAdmin(id)

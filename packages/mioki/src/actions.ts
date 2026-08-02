@@ -3,7 +3,6 @@ import { wait } from './utils'
 import type { Bot } from './adapter'
 import type { Logger } from './logger'
 import type { MessageInput } from './adapter'
-import type { UserId } from './types'
 import type { MessageTarget } from './adapter'
 
 export interface NoticeOptions {
@@ -33,7 +32,7 @@ export const sendMessage = async (bot: Bot, target: MessageTarget, message: Mess
 
 export const noticeOwners = async (
   bots: readonly Bot[],
-  owners: readonly UserId[],
+  owners: readonly string[],
   message: MessageInput,
   options: NoticeOptions = {},
 ): Promise<void> => {
@@ -53,7 +52,7 @@ export const noticeOwners = async (
 
 export const noticeAdmins = async (
   bots: readonly Bot[],
-  admins: readonly UserId[],
+  admins: readonly string[],
   message: MessageInput,
   options: NoticeOptions = {},
 ): Promise<void> => {

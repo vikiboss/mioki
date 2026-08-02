@@ -1,4 +1,4 @@
-import { asMessage, asMessageId, createMessage, MessageSegmentImpl, messageRecall } from 'mioki'
+import { asMessage, createMessage, MessageSegmentImpl, messageRecall } from 'mioki'
 import { segment } from './message'
 
 import type {
@@ -10,18 +10,11 @@ import type {
   MetaEvent,
   NoticeEvent,
   RequestEvent,
-  BotId,
-  MessageId,
-  UserId,
-  GroupId,
-  AdapterName,
   Bot,
 } from 'mioki'
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
-
-const toId = (value: unknown, brand: 'UserId' | 'GroupId' | 'MessageId'): string => String(value ?? '') as never
 
 const TEXT_DECODER = new TextDecoder()
 
@@ -56,12 +49,13 @@ export const buildSegments = (raw: unknown[]): Message => {
   return createMessage(segments)
 }
 
-const buildRoutes = (adapter: AdapterName, ...parts: (string | undefined | null)[]): string[] => {
+const buildRoutes = (adapter: string, ...parts: (string | undefined | null)[]): string[] => {
   const cleaned = parts.filter((p): p is string => typeof p === 'string' && p.length > 0)
   const routes: string[] = []
-  const platformParts = [`adapter:${adapter}`, ...cleaned]
+  const platformParts = [adapter, ...cleaned]
   for (let length = platformParts.length; length > 0; length--) {
-    routes.push(platformParts.slice(0, length).join('.'))
+    const [head, ...rest] = platformParts.slice(0, length)
+    routes.push(rest.length > 0 ? `${head}:${rest.join('.')}` : head)
   }
   for (let length = cleaned.length; length > 0; length--) {
     routes.push(cleaned.slice(0, length).join('.'))
@@ -75,8 +69,8 @@ export interface OneBotEventLike {
 }
 
 const buildIdentity = (params: {
-  adapter: AdapterName
-  bot_id?: BotId
+  adapter: string
+  bot_id?: string
   event_type: string
   message_id?: string | number
   timestamp?: number
@@ -86,14 +80,14 @@ const buildIdentity = (params: {
   bot_id: params.bot_id,
   event_type: params.event_type,
   message_id: typeof params.message_id === 'string' || typeof params.message_id === 'number'
-    ? asMessageId(params.message_id)
+    ? String(params.message_id)
     : undefined,
   timestamp: params.timestamp,
   native_event_id: params.native_event_id,
 })
 
 export const buildMessageEvent = (params: {
-  adapter: AdapterName
+  adapter: string
   bot: Bot
   data: Record<string, unknown> & {
     post_type: 'message'
@@ -112,10 +106,10 @@ export const buildMessageEvent = (params: {
 }): MessageEvent => {
   const { adapter, bot, data } = params
   const message = buildSegments(Array.isArray(data.message) ? data.message : [])
-  const messageId = String(data.message_id) as MessageId
-  const userId = String(data.user_id) as UserId
+  const messageId = String(data.message_id) as string
+  const userId = String(data.user_id) as string
   const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
-    ? (String(data.group_id) as GroupId)
+    ? (String(data.group_id) as string)
     : undefined
   const isGroup = data.message_type === 'group'
   const routes = buildRoutes(adapter, 'message', data.message_type, data.sub_type)
@@ -169,7 +163,7 @@ export const buildMessageEvent = (params: {
 }
 
 export const buildNoticeEvent = (params: {
-  adapter: AdapterName
+  adapter: string
   bot: Bot
   data: Record<string, unknown> & {
     post_type: 'notice'
@@ -183,13 +177,13 @@ export const buildNoticeEvent = (params: {
 }): NoticeEvent => {
   const { adapter, bot, data } = params
   const userId = typeof data.user_id === 'number' || typeof data.user_id === 'string'
-    ? (String(data.user_id) as UserId)
+    ? (String(data.user_id) as string)
     : undefined
   const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
-    ? (String(data.group_id) as GroupId)
+    ? (String(data.group_id) as string)
     : undefined
   const operatorId = typeof data.operator_id === 'number' || typeof data.operator_id === 'string'
-    ? (String(data.operator_id) as UserId)
+    ? (String(data.operator_id) as string)
     : undefined
   const routes = buildRoutes(adapter, 'notice', data.notice_type, data.sub_type)
   return {
@@ -215,7 +209,7 @@ export const buildNoticeEvent = (params: {
 }
 
 export const buildRequestEvent = (params: {
-  adapter: AdapterName
+  adapter: string
   bot: Bot
   api: (action: string, params?: Record<string, unknown>) => Promise<unknown>
   data: Record<string, unknown> & {
@@ -230,9 +224,9 @@ export const buildRequestEvent = (params: {
   }
 }): RequestEvent => {
   const { adapter, bot, api, data } = params
-  const userId = String(data.user_id) as UserId
+  const userId = String(data.user_id) as string
   const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
-    ? (String(data.group_id) as GroupId)
+    ? (String(data.group_id) as string)
     : undefined
   const flag = String(data.flag)
   const routes = buildRoutes(adapter, 'request', data.request_type, data.sub_type)
@@ -256,7 +250,7 @@ export const buildRequestEvent = (params: {
     sub_type: data.sub_type,
     user_id: userId,
     group_id: groupId,
-    flag: flag as import('mioki').RequestId,
+    flag,
     comment: typeof data.comment === 'string' ? data.comment : undefined,
     approve: async () => {
       await api(action, { flag, approve: true })
@@ -268,7 +262,7 @@ export const buildRequestEvent = (params: {
 }
 
 export const buildMetaEvent = (params: {
-  adapter: AdapterName
+  adapter: string
   bot: Bot
   data: Record<string, unknown> & {
     post_type: 'meta_event'

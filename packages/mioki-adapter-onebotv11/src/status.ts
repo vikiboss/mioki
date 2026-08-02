@@ -1,11 +1,11 @@
-import { asAdapterName } from 'mioki'
+
 
 import type { AdapterStatus } from 'mioki'
-import type { OneBotBot } from './bot'
+import type { OneBot } from './bot'
 
 export const createOneBotStatusProvider = (
   getStats: () => { send: number; receive: number } = () => ({ send: 0, receive: 0 }),
-): ((ctx: { bot: OneBotBot }) => Promise<AdapterStatus>) => {
+): ((ctx: { bot: OneBot }) => Promise<AdapterStatus>) => {
   return async ({ bot }) => {
     try {
       const [versionInfo, friendList, groupList] = await Promise.all([
@@ -15,7 +15,7 @@ export const createOneBotStatusProvider = (
       ])
       const stats = getStats()
       return {
-        adapter: asAdapterName('onebotv11'),
+        adapter: 'onebotv11',
         version: versionInfo.app_version,
         data: {
           app_name: versionInfo.app_name,
@@ -27,7 +27,7 @@ export const createOneBotStatusProvider = (
         },
       }
     } catch {
-      return { adapter: asAdapterName('onebotv11'), data: {} }
+      return { adapter: 'onebotv11', data: {} }
     }
   }
 }

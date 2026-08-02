@@ -1,8 +1,7 @@
 import { defineCapability } from '../adapter'
-import type { GroupId, UserId } from '../types'
 
 export interface MemberInfo {
-  readonly user_id: UserId
+  readonly user_id: string
   readonly nickname?: string
   readonly card?: string
   readonly role?: 'owner' | 'admin' | 'member' | (string & {})
@@ -12,34 +11,34 @@ export interface MemberInfo {
 }
 
 export interface MemberBanRequest {
-  readonly group_id: GroupId
-  readonly user_id: UserId
+  readonly group_id: string
+  readonly user_id: string
   /** 禁言时长（秒），0 = 解除禁言 */
   readonly duration: number
 }
 
 export interface MemberKickRequest {
-  readonly group_id: GroupId
-  readonly user_id: UserId
+  readonly group_id: string
+  readonly user_id: string
   /** 是否拒绝该成员后续的加群申请 */
   readonly reject_add_request?: boolean
 }
 
 export interface MemberSetCardRequest {
-  readonly group_id: GroupId
-  readonly user_id: UserId
+  readonly group_id: string
+  readonly user_id: string
   readonly card: string
 }
 
 export interface MemberSetAdminRequest {
-  readonly group_id: GroupId
-  readonly user_id: UserId
+  readonly group_id: string
+  readonly user_id: string
   readonly enable: boolean
 }
 
 export interface MemberGetInfoRequest {
-  readonly group_id: GroupId
-  readonly user_id: UserId
+  readonly group_id: string
+  readonly user_id: string
 }
 
 export const memberBan = defineCapability<MemberBanRequest, void>('member.ban', 1)

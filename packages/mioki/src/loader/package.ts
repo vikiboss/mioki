@@ -3,7 +3,6 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
-import type { AdapterName, PluginName } from '../types'
 import type { AdapterDefinition } from '../adapter'
 
 export interface PackageJson {
@@ -34,7 +33,7 @@ export interface PackageCandidate {
 }
 
 export interface AdapterCandidate {
-  readonly name: AdapterName
+  readonly name: string
   readonly packageName: string
   readonly resolvedPath: string
   readonly packageJson: PackageJson
@@ -44,7 +43,7 @@ export interface AdapterCandidate {
 }
 
 export interface PluginCandidate {
-  readonly name: PluginName
+  readonly name: string
   readonly packageName: string
   readonly resolvedPath: string
   readonly packageJson: PackageJson
@@ -116,7 +115,7 @@ export const resolveEntry = (dir: string, pkg: PackageJson, override?: string): 
 
 export const discoverAdapterCandidates = (cwd: string, appPackageJson: PackageJson): readonly AdapterCandidate[] => {
   const deps = collectDirectDependencyNames(appPackageJson)
-  const seen = new Set<AdapterName>()
+  const seen = new Set<string>()
   const candidates: AdapterCandidate[] = []
   for (const dep of deps) {
     const dir = resolveFromCwd(cwd, dep)
@@ -124,7 +123,7 @@ export const discoverAdapterCandidates = (cwd: string, appPackageJson: PackageJs
     const pkg = readPackageJsonSafe(dir)
     if (!pkg?.mioki || pkg.mioki.type !== 'adapter') continue
     if (!pkg.mioki.name) continue
-    const adapterName = pkg.mioki.name as AdapterName
+    const adapterName = pkg.mioki.name as string
     if (seen.has(adapterName)) {
       throw new Error(`Adapter name conflict: "${adapterName}" appears in multiple direct dependencies`)
     }
@@ -144,14 +143,14 @@ export const discoverAdapterCandidates = (cwd: string, appPackageJson: PackageJs
 
 export const discoverPluginCandidates = (cwd: string, appPackageJson: PackageJson): readonly PluginCandidate[] => {
   const deps = collectDirectDependencyNames(appPackageJson)
-  const seen = new Set<PluginName>()
+  const seen = new Set<string>()
   const candidates: PluginCandidate[] = []
   for (const dep of deps) {
     const dir = resolveFromCwd(cwd, dep)
     if (!dir) continue
     const pkg = readPackageJsonSafe(dir)
     if (!pkg?.mioki || pkg.mioki.type !== 'plugin') continue
-    const pluginName = (pkg.mioki.name ?? pkg.name ?? dep) as PluginName
+    const pluginName = (pkg.mioki.name ?? pkg.name ?? dep) as string
     if (seen.has(pluginName)) {
       throw new Error(`Plugin canonical ID conflict: "${pluginName}" appears in multiple direct dependencies`)
     }
@@ -215,6 +214,6 @@ export interface LoadedAdapterDefinition {
 }
 
 export interface LoadedPluginDefinition {
-  readonly candidate: PluginCandidate | { name: PluginName; resolvedPath: string; entry: string; packageJson: PackageJson }
+  readonly candidate: PluginCandidate | { name: string; resolvedPath: string; entry: string; packageJson: PackageJson }
   readonly module: unknown
 }

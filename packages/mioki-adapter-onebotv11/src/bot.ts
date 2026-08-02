@@ -23,11 +23,6 @@ import type {
   MessageInput,
   MessageTarget,
   SentMessage,
-  AdapterName,
-  BotId,
-  MessageId,
-  UserId,
-  GroupId,
 } from 'mioki'
 
 export interface OneBotFriendInfo {
@@ -54,45 +49,45 @@ export interface OneBotCookie {
   legacyCookie: string
 }
 
-export interface OneBotBotData {
-  bot_id: BotId
-  readonly adapter: AdapterName
+export interface OneBotData {
+  bot_id: string
+  readonly adapter: string
   nickname: string
   online: boolean
   connected_at?: number
 }
 
-export type OneBotBot = MiokiBot & {
+export type OneBot = MiokiBot & {
   sendApi<T = unknown>(action: string, params?: Record<string, unknown>): Promise<T>
-  pickGroup(groupId: GroupId): Promise<OneBotGroupInfo | null>
-  pickFriend(userId: UserId): Promise<OneBotFriendInfo | null>
+  pickGroup(groupId: string): Promise<OneBotGroupInfo | null>
+  pickFriend(userId: string): Promise<OneBotFriendInfo | null>
   getCookie(domain: string): Promise<OneBotCookie>
   getPskey(domain: string): Promise<string>
   getVersionInfo(): Promise<{ app_name: string; app_version: string; protocol_version: string }>
   getLoginInfo(): Promise<{ user_id: number; nickname: string }>
   getFriendList(): Promise<OneBotFriendInfo[]>
   getGroupList(): Promise<OneBotGroupInfo[]>
-  recallMessage(messageId: MessageId): Promise<void>
-  banMember(groupId: GroupId, userId: UserId, duration: number): Promise<void>
-  kickMember(groupId: GroupId, userId: UserId): Promise<void>
-  setMemberCard(groupId: GroupId, userId: UserId, card: string): Promise<void>
-  setMemberAdmin(groupId: GroupId, userId: UserId, enable: boolean): Promise<void>
-  getMemberInfo(groupId: GroupId, userId: UserId): Promise<MemberInfo | null>
-  getGroupInfo(groupId: GroupId): Promise<GroupInfo | null>
-  getGroupMembers(groupId: GroupId): Promise<MemberInfo[]>
-  getHistory(target: MessageTarget, before?: MessageId, limit?: number): Promise<HistoryMessage[]>
-  sendLike(userId: UserId, times?: number): Promise<boolean>
+  recallMessage(messageId: string): Promise<void>
+  banMember(groupId: string, userId: string, duration: number): Promise<void>
+  kickMember(groupId: string, userId: string): Promise<void>
+  setMemberCard(groupId: string, userId: string, card: string): Promise<void>
+  setMemberAdmin(groupId: string, userId: string, enable: boolean): Promise<void>
+  getMemberInfo(groupId: string, userId: string): Promise<MemberInfo | null>
+  getGroupInfo(groupId: string): Promise<GroupInfo | null>
+  getGroupMembers(groupId: string): Promise<MemberInfo[]>
+  getHistory(target: MessageTarget, before?: string, limit?: number): Promise<HistoryMessage[]>
+  sendLike(userId: string, times?: number): Promise<boolean>
   as<T extends object = Record<string, unknown>>(): T
 }
 
 const toMemberInfo = (raw: Record<string, unknown>): MemberInfo => ({
   ...raw,
-  user_id: String(raw.user_id ?? '') as UserId,
+  user_id: String(raw.user_id ?? '') as string,
 })
 
 const toGroupInfo = (raw: Record<string, unknown>): GroupInfo => ({
   ...raw,
-  group_id: String(raw.group_id ?? '') as GroupId,
+  group_id: String(raw.group_id ?? '') as string,
 })
 
 const SUPPORTED_CAPABILITIES = [
@@ -108,15 +103,15 @@ const SUPPORTED_CAPABILITIES = [
   conversationGetHistory,
 ]
 
-export const createOneBotBot = (params: {
-  data: OneBotBotData
+export const createOneBot = (params: {
+  data: OneBotData
   api: ApiCaller
   logger: import('mioki').Logger
   onSend?: () => void
-}): OneBotBot => {
+}): OneBot => {
   const { data, api, logger, onSend } = params
-  const bot: OneBotBot = {
-    get bot_id(): BotId {
+  const bot: OneBot = {
+    get bot_id(): string {
       return data.bot_id
     },
     adapter: data.adapter,
@@ -154,43 +149,43 @@ export const createOneBotBot = (params: {
         return (await bot.sendMessage(request.target, request.message)) as O
       }
       if (capability.token === messageRecall.token) {
-        await bot.recallMessage((input as { message_id: MessageId }).message_id)
+        await bot.recallMessage((input as { message_id: string }).message_id)
         return undefined as O
       }
       if (capability.token === memberBan.token) {
-        const request = input as { group_id: GroupId; user_id: UserId; duration: number }
+        const request = input as { group_id: string; user_id: string; duration: number }
         await bot.banMember(request.group_id, request.user_id, request.duration)
         return undefined as O
       }
       if (capability.token === memberKick.token) {
-        const request = input as { group_id: GroupId; user_id: UserId }
+        const request = input as { group_id: string; user_id: string }
         await bot.kickMember(request.group_id, request.user_id)
         return undefined as O
       }
       if (capability.token === memberSetCard.token) {
-        const request = input as { group_id: GroupId; user_id: UserId; card: string }
+        const request = input as { group_id: string; user_id: string; card: string }
         await bot.setMemberCard(request.group_id, request.user_id, request.card)
         return undefined as O
       }
       if (capability.token === memberSetAdmin.token) {
-        const request = input as { group_id: GroupId; user_id: UserId; enable: boolean }
+        const request = input as { group_id: string; user_id: string; enable: boolean }
         await bot.setMemberAdmin(request.group_id, request.user_id, request.enable)
         return undefined as O
       }
       if (capability.token === memberGetInfo.token) {
-        const request = input as { group_id: GroupId; user_id: UserId }
+        const request = input as { group_id: string; user_id: string }
         return (await bot.getMemberInfo(request.group_id, request.user_id)) as O
       }
       if (capability.token === groupGetInfo.token) {
-        const request = input as { group_id: GroupId }
+        const request = input as { group_id: string }
         return (await bot.getGroupInfo(request.group_id)) as O
       }
       if (capability.token === groupGetMembers.token) {
-        const request = input as { group_id: GroupId }
+        const request = input as { group_id: string }
         return (await bot.getGroupMembers(request.group_id)) as O
       }
       if (capability.token === conversationGetHistory.token) {
-        const request = input as { target: MessageTarget; before?: MessageId; limit?: number }
+        const request = input as { target: MessageTarget; before?: string; limit?: number }
         return (await bot.getHistory(request.target, request.before, request.limit)) as O
       }
       throw new Error(`Unsupported capability: ${capability.name}`)
@@ -198,7 +193,7 @@ export const createOneBotBot = (params: {
     async sendApi<T = unknown>(action: string, actionParams: Record<string, unknown> = {}): Promise<T> {
       return (await api(action, actionParams)) as T
     },
-    async pickGroup(groupId: GroupId) {
+    async pickGroup(groupId: string) {
       try {
         const result = await api('get_group_info', { group_id: groupId })
         return result as OneBotGroupInfo
@@ -207,7 +202,7 @@ export const createOneBotBot = (params: {
         return null
       }
     },
-    async pickFriend(userId: UserId) {
+    async pickFriend(userId: string) {
       try {
         const result = await api('get_stranger_info', { user_id: userId })
         return result as OneBotFriendInfo
@@ -252,22 +247,22 @@ export const createOneBotBot = (params: {
     async getGroupList() {
       return (await api('get_group_list')) as OneBotGroupInfo[]
     },
-    async recallMessage(messageId: MessageId) {
+    async recallMessage(messageId: string) {
       await api('delete_msg', { message_id: messageId })
     },
-    async banMember(groupId: GroupId, userId: UserId, duration: number) {
+    async banMember(groupId: string, userId: string, duration: number) {
       await api('set_group_ban', { group_id: groupId, user_id: userId, duration })
     },
-    async kickMember(groupId: GroupId, userId: UserId) {
+    async kickMember(groupId: string, userId: string) {
       await api('set_group_kick', { group_id: groupId, user_id: userId })
     },
-    async setMemberCard(groupId: GroupId, userId: UserId, card: string) {
+    async setMemberCard(groupId: string, userId: string, card: string) {
       await api('set_group_card', { group_id: groupId, user_id: userId, card })
     },
-    async setMemberAdmin(groupId: GroupId, userId: UserId, enable: boolean) {
+    async setMemberAdmin(groupId: string, userId: string, enable: boolean) {
       await api('set_group_admin', { group_id: groupId, user_id: userId, enable })
     },
-    async getMemberInfo(groupId: GroupId, userId: UserId) {
+    async getMemberInfo(groupId: string, userId: string) {
       try {
         const result = await api<Record<string, unknown>>('get_group_member_info', {
           group_id: groupId,
@@ -279,7 +274,7 @@ export const createOneBotBot = (params: {
         return null
       }
     },
-    async getGroupInfo(groupId: GroupId) {
+    async getGroupInfo(groupId: string) {
       try {
         const result = await api<Record<string, unknown>>('get_group_info', { group_id: groupId })
         return toGroupInfo(result)
@@ -288,11 +283,11 @@ export const createOneBotBot = (params: {
         return null
       }
     },
-    async getGroupMembers(groupId: GroupId) {
+    async getGroupMembers(groupId: string) {
       const result = await api<Record<string, unknown>[]>('get_group_member_list', { group_id: groupId })
       return result.map(toMemberInfo)
     },
-    async getHistory(target: MessageTarget, before?: MessageId, limit = 20) {
+    async getHistory(target: MessageTarget, before?: string, limit = 20) {
       let raw: unknown
       if (target.type === 'group' && target.group_id) {
         raw = await api('get_group_msg_history', {
@@ -313,12 +308,12 @@ export const createOneBotBot = (params: {
         ? raw
         : (raw as { messages?: unknown[] }).messages ?? []
       return (list as Record<string, unknown>[]).map((entry) => ({
-        message_id: String(entry.message_id ?? '') as MessageId,
+        message_id: String(entry.message_id ?? '') as string,
         time: typeof entry.time === 'number' ? (entry.time as number) * 1000 : undefined,
         message: buildSegments(Array.isArray(entry.message) ? (entry.message as unknown[]) : []),
       }))
     },
-    async sendLike(userId: UserId, times = 1) {
+    async sendLike(userId: string, times = 1) {
       try {
         await api('send_like', { user_id: userId, times })
         return true

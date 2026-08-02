@@ -27,11 +27,10 @@ import {
 } from '../loader'
 
 import type { Logger } from '../logger'
-import type { Adapter, AdapterDefinition, AdapterName, BotLifecycleEvent } from '../adapter/types'
+import type { Adapter, AdapterDefinition, BotLifecycleEvent } from '../adapter/types'
 import type { PluginCandidate } from '../loader'
 import type { Event } from '../adapter/event'
 import type { Bot } from '../adapter/bot'
-import type { BotId } from '../types'
 
 export interface CreateRuntimeOptions {
   readonly cwd: string
@@ -41,7 +40,7 @@ export interface CreateRuntimeOptions {
 }
 
 export interface AdapterStartResult {
-  readonly name: AdapterName
+  readonly name: string
   readonly adapter: Adapter
 }
 
@@ -61,8 +60,8 @@ export class MiokiRuntime {
   readonly #bots: BotRegistry
   readonly #capabilities: CapabilityRegistry
   readonly #driver: Driver
-  readonly #adapterStates = new Map<AdapterName, RuntimeAdapterState>()
-  readonly #enabledAdapters = new Map<AdapterName, AdapterDefinition<unknown>>()
+  readonly #adapterStates = new Map<string, RuntimeAdapterState>()
+  readonly #enabledAdapters = new Map<string, AdapterDefinition<unknown>>()
   readonly #enabledPlugins = new Map<string, { cleanup: PluginCleanup | null; plugin: MiokiPlugin }>()
   readonly #driverFactory: () => Driver
   readonly #builtinPlugins: readonly MiokiPlugin[]
@@ -111,16 +110,16 @@ export class MiokiRuntime {
       .filter((a): a is Adapter => a != null)
   }
 
-  getAdapter<T extends Adapter = Adapter>(name: AdapterName): T | undefined {
-    const state = this.#adapterStates.get(name)
+  getAdapter<T extends Adapter = Adapter>(name: string): T | undefined {
+    const state = this.#adapterStates.get(name as string)
     return state?.instance as T | undefined
   }
 
-  pickBot<T extends Bot = Bot>(bot_id: BotId): T | undefined {
+  pickBot<T extends Bot = Bot>(bot_id: string): T | undefined {
     return this.#bots.pick<T>(bot_id)
   }
 
-  pickAdapterBot<T extends Bot = Bot>(adapter: AdapterName, bot_id: BotId): T | undefined {
+  pickAdapterBot<T extends Bot = Bot>(adapter: string, bot_id: string): T | undefined {
     return this.#bots.get<T>(adapter, bot_id)
   }
 
@@ -224,7 +223,7 @@ export class MiokiRuntime {
       config: botConfig,
       logger: this.#logger.child({ plugin: plugin.name }),
       priority: plugin.priority ?? 100,
-      getAdapter: <T extends Adapter = Adapter>(name: AdapterName) => this.getAdapter<T>(name),
+      getAdapter: <T extends Adapter = Adapter>(name: string) => this.getAdapter<T>(name),
       onUpdateConfig: async (updater) => {
         await updateMiokiConfig(updater)
       },
@@ -275,7 +274,7 @@ export class MiokiRuntime {
   async #discoverAdapters(): Promise<void> {
     const appPkg = this.#readAppPackageJson()
     const candidates = discoverAdapterCandidates(this.#cwd, appPkg)
-    const enabledNames = Object.keys(botConfig.adapters ?? {}) as AdapterName[]
+    const enabledNames = Object.keys(botConfig.adapters ?? {}) as string[]
     const candidateByName = new Map(candidates.map((candidate) => [candidate.name, candidate]))
     const jiti = createImportContext(this.#cwd)
     for (const name of enabledNames) {
@@ -392,7 +391,7 @@ export class MiokiRuntime {
     )
   }
 
-  async #startAdapter(name: AdapterName): Promise<Adapter> {
+  async #startAdapter(name: string): Promise<Adapter> {
     const definition = this.#enabledAdapters.get(name)
     if (!definition) {
       throw new Error(`Adapter "${name}" is not enabled`)
@@ -475,7 +474,7 @@ export class MiokiRuntime {
       kind: 'adapter',
       type: 'runtime:ready',
       routes: ['runtime:ready'],
-      identity: { adapter: '' as AdapterName, event_type: 'runtime:ready' },
+      identity: { adapter: '' as string, event_type: 'runtime:ready' },
       time: Date.now(),
       payload: undefined,
     })
@@ -499,7 +498,7 @@ export class MiokiRuntime {
       kind: 'adapter',
       type: 'runtime:shutdown',
       routes: ['runtime:shutdown'],
-      identity: { adapter: '' as AdapterName, event_type: 'runtime:shutdown' },
+      identity: { adapter: '' as string, event_type: 'runtime:shutdown' },
       time: Date.now(),
       payload: reason ? { reason } : undefined,
     })

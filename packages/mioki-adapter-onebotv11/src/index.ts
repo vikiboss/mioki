@@ -8,3 +8,9 @@ export * from './message'
 export * from './status'
 
 export { oneBotAdapterDefinition as default } from './adapter'
+
+declare module 'mioki' {
+  interface AdapterBotMap {
+    onebotv11: import('./bot').OneBot
+  }
+}

@@ -8,7 +8,7 @@ export interface MiokiServices {
   readonly [key: string]: unknown
 }
 
-export const servicesRegistry: MiokiServices = services
+export const servicesRegistry = services
 
 export const getService = <T = unknown>(name: string): T | undefined => services[name] as T | undefined
 

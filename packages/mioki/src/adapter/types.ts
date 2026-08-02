@@ -1,18 +1,15 @@
 import type { Capability } from './capability'
 import type { Driver } from '../driver'
-import type { AdapterName, BotId } from '../types'
 import type { Event } from './event'
 
-export type { AdapterName } from '../types'
-
 export interface CapabilityTarget {
-  readonly adapter: AdapterName
-  readonly bot_id?: BotId
+  readonly adapter: string
+  readonly bot_id?: string
   readonly resource_id?: string
 }
 
 export interface AdapterDefinition<TConfig = unknown> {
-  readonly name: AdapterName
+  readonly name: string
   readonly version: string
   readonly apiVersion: number
   readonly create: (options: AdapterFactoryOptions<TConfig>) => Adapter | Promise<Adapter>
@@ -26,7 +23,7 @@ export interface AdapterFactoryOptions<TConfig = unknown> {
 
 export interface AdapterContext {
   registerBot(bot: import('./bot').Bot): import('./bot').BotContext
-  unregisterBot(bot_id: BotId): void
+  unregisterBot(bot_id: string): void
   getDriver(): Driver
   registerCapability<I, O>(
     capability: Capability<I, O>,
@@ -40,7 +37,7 @@ export interface AdapterContext {
 }
 
 export interface Adapter {
-  readonly name: AdapterName
+  readonly name: string
   readonly version: string
 
   start(context: AdapterContext): Promise<void> | void
@@ -59,7 +56,7 @@ export interface AdapterResource {
   readonly name: string
   readonly scope: AdapterResourceScope
   readonly gateway?: string
-  readonly bot_id?: BotId
+  readonly bot_id?: string
   dispose(reason?: string): void | Promise<void>
 }
 

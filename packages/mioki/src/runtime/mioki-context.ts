@@ -13,11 +13,10 @@ import * as utilsExports from '../utils'
 import { segment } from '../adapter'
 import { addService as registerService, servicesRegistry } from '../services'
 
-import type { Adapter, AdapterName } from '../adapter'
+import type { Adapter } from '../adapter'
 import type { Bot } from '../adapter'
 import type { Driver } from '../driver'
 import type { Event, MessageEvent, MetaEvent, NoticeEvent, RequestEvent } from '../adapter'
-import type { BotId } from '../types'
 import type { BotLifecycleEvent } from '../adapter'
 import type { Logger } from '../logger'
 import type { MiokiConfig } from '../config'
@@ -45,21 +44,17 @@ export interface ContextOptions {
   readonly config: MiokiConfig
   readonly logger: Logger
   readonly priority: number
-  readonly getAdapter: <T extends Adapter = Adapter>(name: AdapterName) => T | undefined
+  readonly getAdapter: <T extends Adapter = Adapter>(name: string) => T | undefined
   readonly onUpdateConfig: (updater: (config: MiokiConfig) => void | Promise<void>) => Promise<void>
   readonly pluginManager: PluginManager
-}
-
-export interface ContextLike {
-  readonly pluginName: string
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-export const toUserId = (value: unknown): import('../types').UserId | undefined => {
+export const toUserId = (value: unknown): string | undefined => {
   if (typeof value === 'number' || typeof value === 'string' || typeof value === 'bigint') {
-    return String(value) as import('../types').UserId
+    return String(value)
   }
   if (isObject(value)) {
     if ('user_id' in value) return toUserId((value as { user_id: unknown }).user_id)
@@ -86,7 +81,12 @@ export const isEventAdmin = (event: unknown): boolean => {
 export const isEventOwnerOrAdmin = (event: unknown): boolean => isEventOwner(event) || isEventAdmin(event)
 export const hasEventRight = (event: unknown): boolean => isEventOwnerOrAdmin(event)
 
-export type EventKindOfRoute<R extends string> = R extends `message${string}`
+/** Adapter packages augment this map with their platform-specific Bot type. */
+export interface AdapterBotMap {}
+
+type SemanticRoute<R extends string> = R extends `${string}:${infer Rest}` ? Rest : R
+
+type EventKindOfSemanticRoute<R extends string> = R extends `message${string}`
   ? MessageEvent
   : R extends `notice${string}`
     ? NoticeEvent
@@ -96,9 +96,25 @@ export type EventKindOfRoute<R extends string> = R extends `message${string}`
         ? MetaEvent
         : Event
 
+export type EventKindOfRoute<R extends string> = EventKindOfSemanticRoute<SemanticRoute<R>>
+
+type AdapterBotOf<Name extends string> = Name extends keyof AdapterBotMap
+  ? AdapterBotMap[Name] extends Bot
+    ? AdapterBotMap[Name]
+    : Bot
+  : Bot
+
+type BotOfRoute<R extends string> = R extends `${infer Adapter}:${string}` ? AdapterBotOf<Adapter> : Bot
+
+type BindRouteBot<E, B extends Bot> = E extends { bot: Bot; self_id: string }
+  ? Omit<E, 'bot' | 'self_id'> & { bot: B; self_id: B['bot_id'] }
+  : E
+
+type RouteEventOf<R extends string> = BindRouteBot<EventKindOfRoute<R>, BotOfRoute<R>>
+
 export type RouteEvent<R extends string | readonly string[]> = R extends readonly string[]
-  ? EventKindOfRoute<R[number]>
-  : EventKindOfRoute<Extract<R, string>>
+  ? RouteEventOf<R[number]>
+  : RouteEventOf<Extract<R, string>>
 
 const CTX_UTILS = {
   localeDate: utilsExports.localeDate,
@@ -164,19 +180,19 @@ export class MiokiContext {
     return this.#options.bots.all()
   }
 
-  get self_id(): BotId | undefined {
+  get self_id(): string | undefined {
     return this.bot?.bot_id
   }
 
-  pickBot<T extends Bot = Bot>(bot_id: BotId): T | undefined {
+  pickBot<T extends Bot = Bot>(bot_id: string): T | undefined {
     return this.#options.bots.pick<T>(bot_id)
   }
 
-  pickAdapterBot<T extends Bot = Bot>(adapter: AdapterName, bot_id: BotId): T | undefined {
+  pickAdapterBot<T extends Bot = Bot>(adapter: string, bot_id: string): T | undefined {
     return this.#options.bots.get<T>(adapter, bot_id)
   }
 
-  getAdapter<T extends Adapter = Adapter>(name: AdapterName): T | undefined {
+  getAdapter<T extends Adapter = Adapter>(name: string): T | undefined {
     return this.#options.getAdapter<T>(name)
   }
 
@@ -253,7 +269,7 @@ export class MiokiContext {
   }
 
   get services(): import('../services').MiokiServices {
-    return servicesRegistry
+    return servicesRegistry as import('../services').MiokiServices
   }
 
   addService<T = unknown>(name: string, value: T, cover?: boolean): () => void {

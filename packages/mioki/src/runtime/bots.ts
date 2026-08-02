@@ -1,12 +1,11 @@
 import { AdapterRegistrationConflictError } from './context'
 
 import type { Bot, BotContext } from '../adapter'
-import type { AdapterName, BotId } from '../types'
 
-const buildKey = (adapter: AdapterName, bot_id: BotId): string => `${adapter}:${bot_id}`
+const buildKey = (adapter: string, bot_id: string): string => `${adapter}:${bot_id}`
 
 export class BotRegistry {
-  #bots = new Map<string, { adapter: AdapterName; bot_id: BotId; bot: Bot }>()
+  #bots = new Map<string, { adapter: string; bot_id: string; bot: Bot }>()
   #disposers = new Map<string, () => void>()
 
   register(bot: Bot): BotContext {
@@ -29,18 +28,18 @@ export class BotRegistry {
     return this.#bots.has(key)
   }
 
-  unregister(bot_id: BotId, adapter: AdapterName): boolean {
+  unregister(bot_id: string, adapter: string): boolean {
     const key = buildKey(adapter, bot_id)
     const removed = this.#bots.delete(key)
     this.#disposers.delete(key)
     return removed
   }
 
-  get<T extends Bot = Bot>(adapter: AdapterName, bot_id: BotId): T | undefined {
+  get<T extends Bot = Bot>(adapter: string, bot_id: string): T | undefined {
     return this.#bots.get(buildKey(adapter, bot_id))?.bot as T | undefined
   }
 
-  pick<T extends Bot = Bot>(bot_id: BotId): T | undefined {
+  pick<T extends Bot = Bot>(bot_id: string): T | undefined {
     for (const entry of this.#bots.values()) {
       if (entry.bot_id === bot_id) return entry.bot as T
     }

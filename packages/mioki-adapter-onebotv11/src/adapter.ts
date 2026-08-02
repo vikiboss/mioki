@@ -1,6 +1,4 @@
 import {
-  asBotId,
-  asMessageId,
   colors,
   conversationGetHistory,
   defineAdapter,
@@ -16,7 +14,7 @@ import {
   registerStatusProvider,
 } from 'mioki'
 import { DEFAULT_INSTANCE, normalizeInstances } from './config'
-import { createOneBotBot, type OneBotBot, type OneBotBotData } from './bot'
+import { createOneBot, type OneBot, type OneBotData } from './bot'
 import { OneBotWebSocketGateway } from './gateway'
 import { AdapterEventDeduplicator } from './dedup'
 import { createOneBotStatusProvider } from './status'
@@ -33,7 +31,6 @@ import type {
   Adapter,
   AdapterContext,
   AdapterFactoryOptions,
-  AdapterName,
 } from 'mioki'
 import type { OneBotAdapterConfig, OneBotInstanceConfig } from './config'
 import type { AdapterStatus, Capability, Event, Logger, Bot, MessageEvent } from 'mioki'
@@ -140,7 +137,7 @@ const buildNoticeFromOneBot = (data: Record<string, unknown>): {
 
 const buildAdapter = (
   instance: OneBotInstanceConfig,
-  adapterName: AdapterName,
+  adapterName: string,
   logger: Logger,
   gatewayName: string,
   botLabel: string,
@@ -148,13 +145,13 @@ const buildAdapter = (
   const url = buildUrl(instance)
   const maskedUrl = buildMaskedUrl(instance)
   const dedup = new AdapterEventDeduplicator({ ttl: 60_000, maxSize: 1024 })
-  const botData: OneBotBotData = {
-    bot_id: asBotId(0),
+  const botData: OneBotData = {
+    bot_id: String(0),
     adapter: adapterName,
     nickname: '',
     online: false,
   }
-  let bot: OneBotBot | null = null
+  let bot: OneBot | null = null
   let gateway: OneBotWebSocketGateway | null = null
   let adapterContext: AdapterContext | null = null
   let unregisterBot: (() => void) | null = null
@@ -170,7 +167,7 @@ const buildAdapter = (
       bot_id: bot.bot_id,
       event_type: typeof data.post_type === 'string' ? data.post_type : 'unknown',
       message_id: typeof data.message_id === 'number' || typeof data.message_id === 'string'
-        ? asMessageId(data.message_id)
+        ? String(data.message_id)
         : undefined,
       timestamp: typeof data.time === 'number' ? data.time * 1000 : undefined,
     }
@@ -231,7 +228,7 @@ const buildAdapter = (
     }
   }
 
-  const registerBotCapabilities = (ctx: AdapterContext, currentBot: OneBotBot): void => {
+  const registerBotCapabilities = (ctx: AdapterContext, currentBot: OneBot): void => {
     unregisterBot = ctx.registerBot(currentBot).unregister
     unregisterCapabilities = [
       ctx.registerCapability(messageSend, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
@@ -281,11 +278,11 @@ const buildAdapter = (
     } catch {
       // ignore
     }
-    botData.bot_id = asBotId(loginInfo.user_id)
+    botData.bot_id = String(loginInfo.user_id)
     botData.nickname = loginInfo.nickname
     botData.connected_at = Date.now()
     if (!bot) {
-      bot = createOneBotBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ })
+      bot = createOneBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ })
       registerBotCapabilities(adapterContext, bot)
     }
     if (!botData.online) {
@@ -361,7 +358,7 @@ const buildAdapter = (
       )
       const statusProvider = createOneBotStatusProvider(() => ({ send: sendCount, receive: receiveCount }))
       unregisterStatus = registerStatusProvider(adapterName, ({ bot: currentBot }: { bot: Bot }) =>
-        statusProvider({ bot: currentBot as OneBotBot }),
+        statusProvider({ bot: currentBot as OneBot }),
       )
       context.registerGateway(gateway)
     },
@@ -390,7 +387,7 @@ const buildAdapter = (
   }
 }
 
-const ADAPTER_NAME = 'onebotv11' as AdapterName
+const ADAPTER_NAME = 'onebotv11' as string
 
 export const oneBotAdapterDefinition = defineAdapter<OneBotAdapterConfig>({
   name: ADAPTER_NAME,

@@ -6,7 +6,7 @@ import { Low } from 'lowdb'
 import { DataFile } from 'lowdb/node'
 import { string2argv } from 'string2argv'
 
-import type { Message } from './adapter'
+import type { Message, MessageSegment } from './adapter'
 import type { BinaryLike, BinaryToTextEncoding } from 'node:crypto'
 import type { ConsolaInstance } from 'consola/core'
 import type { Jiti } from 'jiti'
@@ -271,9 +271,13 @@ export const getGTk = (pskey: string): number => {
   return gkt & 0x7fffffff
 }
 
+export type MatchHandler<T extends HasMessage> = (matches: RegExpMatchArray, event: T) => unknown | Promise<unknown>
+
+export type MatchValue = string | number | boolean | Message | MessageSegment | readonly (string | MessageSegment)[]
+
 export const match = async <T extends HasMessage>(
   event: T,
-  pattern: Record<string, ((matches: RegExpMatchArray, event: T) => unknown | Promise<unknown>) | unknown>,
+  pattern: Record<string, MatchHandler<T> | MatchValue>,
   quote: boolean = true,
 ): Promise<{ message_id: string } | null> => {
   const inputText = event.message.text()

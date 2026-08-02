@@ -4,7 +4,6 @@ import type {
   AdapterContext,
   AdapterGateway,
   AdapterResource,
-  AdapterName,
   BotLifecycleEvent,
   CapabilityTarget,
 } from '../adapter'
@@ -13,7 +12,6 @@ import type { Event } from '../adapter'
 import type { CapabilityRegistry } from '../adapter'
 import type { EventBus } from './bus'
 import type { Logger } from '../logger'
-import type { BotId } from '../types'
 import type { BotRegistry } from './bots'
 import type { Adapter } from '../adapter'
 
@@ -65,7 +63,7 @@ export class AdapterContextImpl implements AdapterContext {
     return this.#bots.register(bot)
   }
 
-  unregisterBot(bot_id: BotId): void {
+  unregisterBot(bot_id: string): void {
     this.#bots.unregister(bot_id, this.#state.definition.name)
   }
 
@@ -80,7 +78,7 @@ export class AdapterContextImpl implements AdapterContext {
   ): () => void {
     const finalTarget: CapabilityTarget = {
       ...target,
-      adapter: target.adapter === ('' as AdapterName) ? this.#state.definition.name : target.adapter,
+      adapter: target.adapter === ('' as string) ? this.#state.definition.name : target.adapter,
     }
     return this.#capabilities.register(capability, finalTarget, handler)
   }
@@ -158,7 +156,7 @@ export class AdapterContextImpl implements AdapterContext {
     return this.#emit(event)
   }
 
-  get adapterName(): AdapterName {
+  get adapterName(): string {
     return this.#state.definition.name
   }
 }

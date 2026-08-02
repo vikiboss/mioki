@@ -7,7 +7,7 @@ export interface MessageSendRequest {
 }
 
 export interface MessageRecallRequest {
-  readonly message_id: import('../types').MessageId
+  readonly message_id: string
 }
 
 export const messageSend = defineCapability<MessageSendRequest, SentMessage>('message.send', 1)
