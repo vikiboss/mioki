@@ -1,11 +1,12 @@
 {
-  "name": "mioki-adapter-napcat",
+  "name": "mioki-adapter-onebotv11",
   "type": "module",
   "version": "1.0.0",
   "packageManager": "pnpm@10.26.0",
-  "description": "NapCat OneBot v11 adapter for mioki.",
+  "description": "OneBot v11 adapter for mioki (NapCat).",
   "keywords": [
     "mioki",
+    "onebotv11",
     "napcat"
   ],
   "engines": {
@@ -21,7 +22,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/vikiboss/mioki.git",
-    "directory": "packages/mioki-adapter-napcat"
+    "directory": "packages/mioki-adapter-onebotv11"
   },
   "scripts": {
     "dev": "tsdown -w",
@@ -36,7 +37,7 @@
   },
   "mioki": {
     "type": "adapter",
-    "name": "napcat",
+    "name": "onebotv11",
     "apiVersion": 1,
     "entry": "./dist/index.mjs"
   },

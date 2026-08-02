@@ -87,9 +87,9 @@ importers:
       mioki:
         specifier: workspace:*
         version: link:../packages/mioki
-      mioki-adapter-napcat:
+      mioki-adapter-onebotv11:
         specifier: workspace:*
-        version: link:../packages/mioki-adapter-napcat
+        version: link:../packages/mioki-adapter-onebotv11
 
   packages/mioki:
     dependencies:
@@ -134,7 +134,7 @@ importers:
         specifier: catalog:dev
         version: 5.9.3
 
-  packages/mioki-adapter-napcat:
+  packages/mioki-adapter-onebotv11:
     dependencies:
       mioki:
         specifier: workspace:*

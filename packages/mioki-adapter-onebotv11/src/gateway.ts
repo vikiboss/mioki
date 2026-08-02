@@ -28,7 +28,7 @@ interface PendingRequest {
   action: string
 }
 
-export class NapCatWebSocketGateway {
+export class OneBotWebSocketGateway {
   readonly name: string
   readonly #options: GatewayOptions
   readonly #handlers: GatewayHandlers
@@ -42,7 +42,7 @@ export class NapCatWebSocketGateway {
   #echoListenerInstalled = false
 
   constructor(options: GatewayOptions, handlers: GatewayHandlers) {
-    this.name = options.name ?? 'napcat.websocket'
+    this.name = options.name ?? 'onebotv11.websocket'
     this.#options = options
     this.#handlers = handlers
     this.#requestTimeout = 30_000

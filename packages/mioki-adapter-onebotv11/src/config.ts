@@ -1,8 +1,8 @@
-export interface NapCatAdapterConfig {
-  instances: ReadonlyArray<NapCatInstanceConfig>
+export interface OneBotAdapterConfig {
+  instances: ReadonlyArray<OneBotInstanceConfig>
 }
 
-export interface NapCatInstanceConfig {
+export interface OneBotInstanceConfig {
   protocol?: 'ws' | 'wss'
   host?: string
   port?: number
@@ -14,7 +14,7 @@ export interface NapCatInstanceConfig {
   headers?: Readonly<Record<string, string>>
 }
 
-export const DEFAULT_INSTANCE: Required<Omit<NapCatInstanceConfig, 'token' | 'headers'>> = {
+export const DEFAULT_INSTANCE: Required<Omit<OneBotInstanceConfig, 'token' | 'headers'>> = {
   protocol: 'ws',
   host: 'localhost',
   port: 3001,
@@ -24,20 +24,20 @@ export const DEFAULT_INSTANCE: Required<Omit<NapCatInstanceConfig, 'token' | 'he
   maxReconnectInterval: 30_000,
 }
 
-export const normalizeInstances = (input: unknown): NapCatInstanceConfig[] => {
+export const normalizeInstances = (input: unknown): OneBotInstanceConfig[] => {
   if (!input) return []
   if (Array.isArray(input)) {
     if (input.length === 0) return []
     if (typeof input[0] === 'object') {
-      return input as NapCatInstanceConfig[]
+      return input as OneBotInstanceConfig[]
     }
     return []
   }
   if (typeof input === 'object' && input !== null) {
     const obj = input as Record<string, unknown>
-    if (Array.isArray(obj.instances)) return obj.instances as NapCatInstanceConfig[]
+    if (Array.isArray(obj.instances)) return obj.instances as OneBotInstanceConfig[]
     if ('protocol' in obj || 'host' in obj || 'port' in obj) {
-      return [obj as NapCatInstanceConfig]
+      return [obj as OneBotInstanceConfig]
     }
   }
   return []

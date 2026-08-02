@@ -30,13 +30,13 @@ import type {
   GroupId,
 } from 'mioki'
 
-export interface NapCatFriendInfo {
+export interface OneBotFriendInfo {
   user_id: number
   nickname: string
   [key: string]: unknown
 }
 
-export interface NapCatGroupInfo {
+export interface OneBotGroupInfo {
   group_id: number
   group_name: string
   member_count: number
@@ -44,7 +44,7 @@ export interface NapCatGroupInfo {
   [key: string]: unknown
 }
 
-export interface NapCatCookie {
+export interface OneBotCookie {
   uin: number
   pskey: string
   skey: string
@@ -54,7 +54,7 @@ export interface NapCatCookie {
   legacyCookie: string
 }
 
-export interface NapCatBotData {
+export interface OneBotBotData {
   bot_id: BotId
   readonly adapter: AdapterName
   nickname: string
@@ -62,16 +62,16 @@ export interface NapCatBotData {
   connected_at?: number
 }
 
-export type NapCatBot = MiokiBot & {
+export type OneBotBot = MiokiBot & {
   sendApi<T = unknown>(action: string, params?: Record<string, unknown>): Promise<T>
-  pickGroup(groupId: GroupId): Promise<NapCatGroupInfo | null>
-  pickFriend(userId: UserId): Promise<NapCatFriendInfo | null>
-  getCookie(domain: string): Promise<NapCatCookie>
+  pickGroup(groupId: GroupId): Promise<OneBotGroupInfo | null>
+  pickFriend(userId: UserId): Promise<OneBotFriendInfo | null>
+  getCookie(domain: string): Promise<OneBotCookie>
   getPskey(domain: string): Promise<string>
   getVersionInfo(): Promise<{ app_name: string; app_version: string; protocol_version: string }>
   getLoginInfo(): Promise<{ user_id: number; nickname: string }>
-  getFriendList(): Promise<NapCatFriendInfo[]>
-  getGroupList(): Promise<NapCatGroupInfo[]>
+  getFriendList(): Promise<OneBotFriendInfo[]>
+  getGroupList(): Promise<OneBotGroupInfo[]>
   recallMessage(messageId: MessageId): Promise<void>
   banMember(groupId: GroupId, userId: UserId, duration: number): Promise<void>
   kickMember(groupId: GroupId, userId: UserId): Promise<void>
@@ -108,14 +108,14 @@ const SUPPORTED_CAPABILITIES = [
   conversationGetHistory,
 ]
 
-export const createNapCatBot = (params: {
-  data: NapCatBotData
+export const createOneBotBot = (params: {
+  data: OneBotBotData
   api: ApiCaller
   logger: import('mioki').Logger
   onSend?: () => void
-}): NapCatBot => {
+}): OneBotBot => {
   const { data, api, logger, onSend } = params
-  const bot: NapCatBot = {
+  const bot: OneBotBot = {
     get bot_id(): BotId {
       return data.bot_id
     },
@@ -201,7 +201,7 @@ export const createNapCatBot = (params: {
     async pickGroup(groupId: GroupId) {
       try {
         const result = await api('get_group_info', { group_id: groupId })
-        return result as NapCatGroupInfo
+        return result as OneBotGroupInfo
       } catch (err) {
         logger.warn(`pickGroup(${groupId}) failed`, err)
         return null
@@ -210,7 +210,7 @@ export const createNapCatBot = (params: {
     async pickFriend(userId: UserId) {
       try {
         const result = await api('get_stranger_info', { user_id: userId })
-        return result as NapCatFriendInfo
+        return result as OneBotFriendInfo
       } catch (err) {
         logger.warn(`pickFriend(${userId}) failed`, err)
         return null
@@ -247,10 +247,10 @@ export const createNapCatBot = (params: {
       return (await api('get_login_info')) as { user_id: number; nickname: string }
     },
     async getFriendList() {
-      return (await api('get_friend_list')) as NapCatFriendInfo[]
+      return (await api('get_friend_list')) as OneBotFriendInfo[]
     },
     async getGroupList() {
-      return (await api('get_group_list')) as NapCatGroupInfo[]
+      return (await api('get_group_list')) as OneBotGroupInfo[]
     },
     async recallMessage(messageId: MessageId) {
       await api('delete_msg', { message_id: messageId })

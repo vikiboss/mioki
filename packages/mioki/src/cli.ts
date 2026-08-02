@@ -81,7 +81,7 @@ interface CliOptions {
     "type": "module",
     "dependencies": {
       "mioki": "^${version}",
-      "mioki-adapter-napcat": "^${version}"
+      "mioki-adapter-onebotv11": "^${version}"
     },
     "mioki": {
       "prefix": "${prefix}",
@@ -102,7 +102,7 @@ interface CliOptions {
       "online_push": true,
       "error_push": true,
       "adapters": {
-        "napcat": {
+        "onebotv11": {
           "instances": [
             {
               "protocol": "ws",

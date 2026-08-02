@@ -16,10 +16,10 @@ import {
   registerStatusProvider,
 } from 'mioki'
 import { DEFAULT_INSTANCE, normalizeInstances } from './config'
-import { createNapCatBot, type NapCatBot, type NapCatBotData } from './bot'
-import { NapCatWebSocketGateway } from './gateway'
+import { createOneBotBot, type OneBotBot, type OneBotBotData } from './bot'
+import { OneBotWebSocketGateway } from './gateway'
 import { AdapterEventDeduplicator } from './dedup'
-import { createNapCatStatusProvider } from './status'
+import { createOneBotStatusProvider } from './status'
 import {
   buildMessageEvent,
   buildMetaEvent,
@@ -35,20 +35,20 @@ import type {
   AdapterFactoryOptions,
   AdapterName,
 } from 'mioki'
-import type { NapCatAdapterConfig, NapCatInstanceConfig } from './config'
+import type { OneBotAdapterConfig, OneBotInstanceConfig } from './config'
 import type { AdapterStatus, Capability, Event, Logger, Bot, MessageEvent } from 'mioki'
 import type { WebSocketConnection } from 'mioki'
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const NAPCAT_NOTICE_NOTIFY_MAP: Record<string, { notice_type: string; sub_type: string }> = {
+const ONEBOT_NOTICE_NOTIFY_MAP: Record<string, { notice_type: string; sub_type: string }> = {
   input_status: { notice_type: 'friend', sub_type: 'input' },
   profile_like: { notice_type: 'friend', sub_type: 'like' },
   title: { notice_type: 'group', sub_type: 'title' },
 }
 
-const NAPCAT_NOTICE_EVENT_MAP: Record<string, { notice_type: string; sub_type: string }> = {
+const ONEBOT_NOTICE_EVENT_MAP: Record<string, { notice_type: string; sub_type: string }> = {
   friend_add: { notice_type: 'friend', sub_type: 'increase' },
   friend_recall: { notice_type: 'friend', sub_type: 'recall' },
   offline_file: { notice_type: 'friend', sub_type: 'offline_file' },
@@ -64,7 +64,7 @@ const NAPCAT_NOTICE_EVENT_MAP: Record<string, { notice_type: string; sub_type: s
   group_recall: { notice_type: 'group', sub_type: 'recall' },
 }
 
-const buildUrl = (config: NapCatInstanceConfig): string => {
+const buildUrl = (config: OneBotInstanceConfig): string => {
   const protocol = config.protocol ?? DEFAULT_INSTANCE.protocol
   const host = config.host ?? DEFAULT_INSTANCE.host
   const port = config.port ?? DEFAULT_INSTANCE.port
@@ -73,7 +73,7 @@ const buildUrl = (config: NapCatInstanceConfig): string => {
   return `${protocol}://${host}:${port}${search}`
 }
 
-const buildMaskedUrl = (config: NapCatInstanceConfig): string => {
+const buildMaskedUrl = (config: OneBotInstanceConfig): string => {
   const protocol = config.protocol ?? DEFAULT_INSTANCE.protocol
   const host = config.host ?? DEFAULT_INSTANCE.host
   const port = config.port ?? DEFAULT_INSTANCE.port
@@ -115,7 +115,7 @@ const buildNoticeFromOneBot = (data: Record<string, unknown>): {
       ? data.group_id
         ? { notice_type: 'group', sub_type: 'poke' }
         : { notice_type: 'friend', sub_type: 'poke' }
-      : NAPCAT_NOTICE_NOTIFY_MAP[(data.sub_type as string) ?? '']
+      : ONEBOT_NOTICE_NOTIFY_MAP[(data.sub_type as string) ?? '']
     if (mapped) {
       return {
         notice_type: mapped.notice_type,
@@ -124,7 +124,7 @@ const buildNoticeFromOneBot = (data: Record<string, unknown>): {
       }
     }
   }
-  const mapped = NAPCAT_NOTICE_EVENT_MAP[(data.notice_type as string) ?? '']
+  const mapped = ONEBOT_NOTICE_EVENT_MAP[(data.notice_type as string) ?? '']
   if (mapped) {
     return {
       notice_type: mapped.notice_type,
@@ -139,7 +139,7 @@ const buildNoticeFromOneBot = (data: Record<string, unknown>): {
 }
 
 const buildAdapter = (
-  instance: NapCatInstanceConfig,
+  instance: OneBotInstanceConfig,
   adapterName: AdapterName,
   logger: Logger,
   gatewayName: string,
@@ -148,14 +148,14 @@ const buildAdapter = (
   const url = buildUrl(instance)
   const maskedUrl = buildMaskedUrl(instance)
   const dedup = new AdapterEventDeduplicator({ ttl: 60_000, maxSize: 1024 })
-  const botData: NapCatBotData = {
+  const botData: OneBotBotData = {
     bot_id: asBotId(0),
     adapter: adapterName,
     nickname: '',
     online: false,
   }
-  let bot: NapCatBot | null = null
-  let gateway: NapCatWebSocketGateway | null = null
+  let bot: OneBotBot | null = null
+  let gateway: OneBotWebSocketGateway | null = null
   let adapterContext: AdapterContext | null = null
   let unregisterBot: (() => void) | null = null
   let unregisterCapabilities: Array<() => void> = []
@@ -231,7 +231,7 @@ const buildAdapter = (
     }
   }
 
-  const registerBotCapabilities = (ctx: AdapterContext, currentBot: NapCatBot): void => {
+  const registerBotCapabilities = (ctx: AdapterContext, currentBot: OneBotBot): void => {
     unregisterBot = ctx.registerBot(currentBot).unregister
     unregisterCapabilities = [
       ctx.registerCapability(messageSend, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
@@ -270,7 +270,7 @@ const buildAdapter = (
   }
 
   const ensureBot = async (): Promise<void> => {
-    if (!adapterContext || !gateway) throw new Error('NapCat adapter is not initialized')
+    if (!adapterContext || !gateway) throw new Error('OneBot adapter is not initialized')
     const loginInfo = await gateway.call<{ user_id: number | string; nickname: string }>('get_login_info')
     let appName = ''
     let appVersion = ''
@@ -285,7 +285,7 @@ const buildAdapter = (
     botData.nickname = loginInfo.nickname
     botData.connected_at = Date.now()
     if (!bot) {
-      bot = createNapCatBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ })
+      bot = createOneBotBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ })
       registerBotCapabilities(adapterContext, bot)
     }
     if (!botData.online) {
@@ -337,15 +337,15 @@ const buildAdapter = (
           return handleConnect(connection)
         },
         onClose(code: number, reason: string): Promise<void> {
-          logger.warn(`NapCat WS closed (code=${code}, reason=${reason})`)
+          logger.warn(`OneBot WS closed (code=${code}, reason=${reason})`)
           return handleClose()
         },
         onError(err: Error): Promise<void> {
-          logger.error(`NapCat WS error: ${err.message}`)
+          logger.error(`OneBot WS error: ${err.message}`)
           return Promise.resolve()
         },
       }
-      gateway = new NapCatWebSocketGateway(
+      gateway = new OneBotWebSocketGateway(
         {
           name: gatewayName,
           url,
@@ -359,9 +359,9 @@ const buildAdapter = (
         },
         handlers,
       )
-      const statusProvider = createNapCatStatusProvider(() => ({ send: sendCount, receive: receiveCount }))
+      const statusProvider = createOneBotStatusProvider(() => ({ send: sendCount, receive: receiveCount }))
       unregisterStatus = registerStatusProvider(adapterName, ({ bot: currentBot }: { bot: Bot }) =>
-        statusProvider({ bot: currentBot as NapCatBot }),
+        statusProvider({ bot: currentBot as OneBotBot }),
       )
       context.registerGateway(gateway)
     },
@@ -390,20 +390,20 @@ const buildAdapter = (
   }
 }
 
-const ADAPTER_NAME = 'napcat' as AdapterName
+const ADAPTER_NAME = 'onebotv11' as AdapterName
 
-export const napcatAdapterDefinition = defineAdapter<NapCatAdapterConfig>({
+export const oneBotAdapterDefinition = defineAdapter<OneBotAdapterConfig>({
   name: ADAPTER_NAME,
   version: '1.0.0',
   apiVersion: 1,
-  validateConfig: (config): NapCatAdapterConfig => {
+  validateConfig: (config): OneBotAdapterConfig => {
     const instances = normalizeInstances(config)
     if (instances.length === 0) {
-      throw new Error('napcat.instances must contain at least one instance')
+      throw new Error('onebotv11.instances must contain at least one instance')
     }
     return { instances: instances.map((instance) => ({ ...DEFAULT_INSTANCE, ...instance })) }
   },
-  create: (options: AdapterFactoryOptions<NapCatAdapterConfig>): Adapter => {
+  create: (options: AdapterFactoryOptions<OneBotAdapterConfig>): Adapter => {
     const instances = [...options.config.instances]
     const adapters = instances.map((instance, index) =>
       buildAdapter(instance, ADAPTER_NAME, options.logger, `${ADAPTER_NAME}.gateway.${index + 1}`, `Bot${index + 1}`),

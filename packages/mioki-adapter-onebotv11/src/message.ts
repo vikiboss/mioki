@@ -1,5 +1,5 @@
 import { isMessage, MessageSegmentImpl } from 'mioki'
-import { segment as napcatSegmentImpl } from 'napcat-sdk'
+import { segment as oneBotSegmentImpl } from 'napcat-sdk'
 
 import type {
   Attachment,
@@ -9,7 +9,7 @@ import type {
   SentMessage,
 } from 'mioki'
 
-export interface NapCatSegment {
+export interface OneBotSegment {
   text(text: string): MessageSegment
   at(qq: 'all' | string | number): MessageSegment
   image(file: string | Buffer, options?: Record<string, unknown>): MessageSegment
@@ -41,15 +41,15 @@ const wrapSegment = (
 ): ((...args: unknown[]) => MessageSegment) =>
   (...args: unknown[]) => toCoreSegment(fn(...args))
 
-export const segment: NapCatSegment = new Proxy(napcatSegmentImpl, {
+export const segment: OneBotSegment = new Proxy(oneBotSegmentImpl, {
   get(target, prop, receiver) {
     const value = Reflect.get(target, prop, receiver)
     if (typeof value === 'function') return wrapSegment(value as never)
     return value
   },
-}) as unknown as NapCatSegment
+}) as unknown as OneBotSegment
 
-export const napcatSegment = segment
+export const oneBotSegment = segment
 
 export interface SendNormalizedSegment {
   type: string

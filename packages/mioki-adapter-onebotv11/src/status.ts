@@ -1,11 +1,11 @@
 import { asAdapterName } from 'mioki'
 
 import type { AdapterStatus } from 'mioki'
-import type { NapCatBot } from './bot'
+import type { OneBotBot } from './bot'
 
-export const createNapCatStatusProvider = (
+export const createOneBotStatusProvider = (
   getStats: () => { send: number; receive: number } = () => ({ send: 0, receive: 0 }),
-): ((ctx: { bot: NapCatBot }) => Promise<AdapterStatus>) => {
+): ((ctx: { bot: OneBotBot }) => Promise<AdapterStatus>) => {
   return async ({ bot }) => {
     try {
       const [versionInfo, friendList, groupList] = await Promise.all([
@@ -15,7 +15,7 @@ export const createNapCatStatusProvider = (
       ])
       const stats = getStats()
       return {
-        adapter: asAdapterName('napcat'),
+        adapter: asAdapterName('onebotv11'),
         version: versionInfo.app_version,
         data: {
           app_name: versionInfo.app_name,
@@ -27,7 +27,7 @@ export const createNapCatStatusProvider = (
         },
       }
     } catch {
-      return { adapter: asAdapterName('napcat'), data: {} }
+      return { adapter: asAdapterName('onebotv11'), data: {} }
     }
   }
 }
