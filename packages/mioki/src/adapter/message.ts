@@ -51,6 +51,8 @@ export interface ReplyOptions {
   readonly quote?: boolean
 }
 
+export type ReplyArg = boolean | ReplyOptions
+
 export interface ConversationRef {
   readonly type: string
   readonly id: string

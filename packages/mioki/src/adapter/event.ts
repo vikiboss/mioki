@@ -45,7 +45,8 @@ export interface MessageEvent extends BotEventBase {
   readonly conversation?: ConversationRef
   readonly message: Message
   readonly is_to_me?: boolean
-  reply(message: MessageInput, options?: ReplyOptions): Promise<SentMessage>
+  reply(message: MessageInput, options?: boolean | ReplyOptions): Promise<SentMessage>
+  recall(): Promise<void>
 }
 
 export interface NoticeEvent extends BotEventBase {

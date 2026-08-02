@@ -8,6 +8,8 @@ export interface MiokiServices {
   readonly [key: string]: unknown
 }
 
+export const servicesRegistry: MiokiServices = services
+
 export const getService = <T = unknown>(name: string): T | undefined => services[name] as T | undefined
 
 export const setService = <T = unknown>(name: string, value: T, cover: boolean = true): () => void => {

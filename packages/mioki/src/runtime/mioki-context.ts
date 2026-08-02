@@ -1,5 +1,17 @@
 import { isAdmin as isConfiguredAdmin, isOwner as isConfiguredOwner } from '../config'
 import nodeCron from 'node-cron'
+import {
+  createCmd as createCmdUtil,
+  createDB as createDBUtil,
+  createStore as createStoreUtil,
+  match as matchMessage,
+  text as extractText,
+  type CreateCmdOptions,
+  type HasMessage,
+} from '../utils'
+import * as utilsExports from '../utils'
+import { segment } from '../adapter'
+import { addService as registerService, servicesRegistry } from '../services'
 
 import type { Adapter, AdapterName } from '../adapter'
 import type { Bot } from '../adapter'
@@ -14,6 +26,7 @@ import type { CronHandler, PluginCleanup, ScheduledTask } from '../plugin'
 import type { TaskContext } from 'node-cron'
 import type { CapabilityRegistry } from '../adapter'
 import type { BotRegistry } from './bots'
+import type { Message, MessageInput } from '../adapter'
 
 export interface PluginManager {
   list(): Array<{ name: string; type: 'builtin' | 'external'; version?: string }>
@@ -87,12 +100,52 @@ export type RouteEvent<R extends string | readonly string[]> = R extends readonl
   ? EventKindOfRoute<R[number]>
   : EventKindOfRoute<Extract<R, string>>
 
+const CTX_UTILS = {
+  localeDate: utilsExports.localeDate,
+  localeTime: utilsExports.localeTime,
+  randomInt: utilsExports.randomInt,
+  randomItem: utilsExports.randomItem,
+  randomItems: utilsExports.randomItems,
+  randomId: utilsExports.randomId,
+  uuid: utilsExports.uuid,
+  wait: utilsExports.wait,
+  toArray: utilsExports.toArray,
+  unique: utilsExports.unique,
+  clamp: utilsExports.clamp,
+  noNullish: utilsExports.noNullish,
+  isDefined: utilsExports.isDefined,
+  isFunction: utilsExports.isFunction,
+  isNumber: utilsExports.isNumber,
+  isBoolean: utilsExports.isBoolean,
+  isString: utilsExports.isString,
+  isObject: utilsExports.isObject,
+  localNum: utilsExports.localNum,
+  formatDuration: utilsExports.formatDuration,
+  md5: utilsExports.md5,
+  base64Encode: utilsExports.base64Encode,
+  base64Decode: utilsExports.base64Decode,
+  qs: utilsExports.qs,
+  stringifyError: utilsExports.stringifyError,
+  getTerminalInput: utilsExports.getTerminalInput,
+  find: utilsExports.find,
+  filter: utilsExports.filter,
+  prettyMs: utilsExports.prettyMs,
+  filesize: utilsExports.filesize,
+  dayjs: utilsExports.dayjs,
+  path: utilsExports.path,
+  fs: utilsExports.fs,
+  colors: utilsExports.colors,
+} as const
+
+type CtxUtils = typeof CTX_UTILS
+
 export class MiokiContext {
   readonly #options: ContextOptions
   readonly #cleanup: Set<PluginCleanup> = new Set()
 
   constructor(options: ContextOptions) {
     this.#options = options
+    Object.assign(this, CTX_UTILS)
   }
 
   #addCleanup(fn: PluginCleanup): void {
@@ -199,12 +252,82 @@ export class MiokiContext {
     return this.#options.pluginManager
   }
 
+  get services(): import('../services').MiokiServices {
+    return servicesRegistry
+  }
+
+  addService<T = unknown>(name: string, value: T, cover?: boolean): () => void {
+    const remove = registerService<T>(name, value, cover)
+    this.#addCleanup(remove)
+    return remove
+  }
+
   get capabilities(): CapabilityRegistry {
     return this.#options.capabilities
   }
 
   get buses(): EventBus {
     return this.#options.bus
+  }
+
+  get segment(): typeof segment {
+    return segment
+  }
+
+  match<T extends HasMessage>(
+    event: T,
+    pattern: Parameters<typeof matchMessage>[1],
+    quote?: boolean,
+  ): ReturnType<typeof matchMessage> {
+    return matchMessage(event, pattern, quote)
+  }
+
+  createCmd(cmdStr: string, options: CreateCmdOptions = {}): ReturnType<typeof createCmdUtil> {
+    return createCmdUtil(cmdStr, options)
+  }
+
+  createStore<T extends object = object>(
+    defaultData: T,
+    options: { __dirname?: string; importMeta?: ImportMeta; compress?: boolean; filename?: string } = {},
+  ): ReturnType<typeof createStoreUtil<T>> {
+    return createStoreUtil<T>(defaultData, options)
+  }
+
+  createDB<T extends object = object>(
+    filename: string,
+    options: { defaultData?: T; compress?: boolean } = {},
+  ): ReturnType<typeof createDBUtil<T>> {
+    return createDBUtil<T>(filename, options)
+  }
+
+  text(source: HasMessage | Message, options?: { trim?: boolean | 'whole' | 'each' }): string {
+    return extractText(source, options)
+  }
+
+  isGroupMsg(event: unknown): boolean {
+    return isObject(event) && (event as { kind?: unknown }).kind === 'message' &&
+      (event as { message_type?: unknown }).message_type === 'group'
+  }
+
+  isPrivateMsg(event: unknown): boolean {
+    return isObject(event) && (event as { kind?: unknown }).kind === 'message' &&
+      (event as { message_type?: unknown }).message_type === 'private'
+  }
+
+  isOwner(event: unknown): boolean {
+    return isEventOwner(event)
+  }
+
+  isAdmin(event: unknown): boolean {
+    return isEventAdmin(event)
+  }
+
+  isOwnerOrAdmin(event: unknown): boolean {
+    return isEventOwnerOrAdmin(event)
+  }
+
+  hasRight(event: unknown): boolean {
+    return hasEventRight(event)
   }
 
   async dispose(): Promise<void> {
@@ -219,3 +342,5 @@ export class MiokiContext {
     }
   }
 }
+
+export interface MiokiContext extends CtxUtils {}

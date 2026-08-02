@@ -1,4 +1,4 @@
-import { asMessage, asMessageId, createMessage, MessageSegmentImpl } from 'mioki'
+import { asMessage, asMessageId, createMessage, MessageSegmentImpl, messageRecall } from 'mioki'
 import { segment } from './message'
 
 import type {
@@ -151,12 +151,19 @@ export const buildMessageEvent = (params: {
       const replyOptions = isGroup
         ? ({ type: 'group', group_id: groupId } as const)
         : ({ type: 'private', user_id: userId } as const)
+      const opts = typeof options === 'boolean' ? { quote: options } : options
       let content = input
-      if (options?.quote && messageId) {
+      if (opts?.quote && messageId) {
         content = [segment.reply(messageId), ...asMessage(input)]
       }
       const sent = await bot.sendMessage(replyOptions, content)
       return sent
+    },
+    recall: async () => {
+      if (!bot.supports(messageRecall)) {
+        throw new Error('message.recall is not supported on this bot')
+      }
+      await bot.invoke(messageRecall, { message_id: messageId })
     },
   }
 }
