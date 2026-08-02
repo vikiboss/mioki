@@ -202,3 +202,129 @@ connection.onMessage((data) => handleMessage(data))
 // 发起 HTTP 请求
 const res = await driver.http.request({ method: 'GET', url: 'https://api.example.com' })
 ```
+
+## 提供 CLI 配置向导 {#provide-cli}
+
+适配器可以自带一个 CLI，在用户安装或初始化项目时引导填写 `mioki.adapters[<id>]` 所需字段。mioki 主 CLI 会在创建项目阶段依次调用每个已选适配器的 CLI，无需用户手动编辑 `package.json`。
+
+### 1. 约定文件结构 {#cli-structure}
+
+```
+mioki-adapter-xxx/
+├── package.json
+└── src/
+    ├── index.ts
+    └── cli.ts          # ← 配置向导（导出 default run 函数）
+```
+
+### 2. `src/cli.ts` {#cli-source}
+
+默认导出一个 `run(ctx)` 异步函数，接收 `{ cwd }`（用户项目根目录），返回该适配器的配置对象。返回的字段会被主 CLI 直接合并到 `mioki.adapters[<id>]`。
+
+```ts
+import consola from 'consola'
+
+const confirm = (message: string, options?: Parameters<typeof consola.prompt>[1]) =>
+  consola.prompt(message, { type: 'confirm', cancel: 'reject', ...options }) as Promise<boolean>
+
+const input = async (message: string, options?: Parameters<typeof consola.prompt>[1]): Promise<string> => {
+  let result: string
+  do {
+    result = (await consola.prompt(message, { type: 'text', cancel: 'reject', ...options })) as string
+    if (options?.required && !result) continue
+    break
+  } while (true)
+  return result
+}
+
+const select = <T>(message: string, options: Array<{ label: string; value: T }>): Promise<T> =>
+  consola.prompt(message, { type: 'select', cancel: 'reject', options }) as Promise<T>
+
+export interface CliContext {
+  readonly cwd: string
+  readonly logger?: typeof consola
+}
+
+export const run = async (ctx: CliContext) => {
+  ctx.logger?.info(`正在配置 xxx 适配器连接参数`)
+  const host = await input('主机地址', { default: 'localhost' })
+  const port = Number(await input('端口', { default: '3001' })) || 3001
+  const token = await input('访问令牌 (可空)', { placeholder: '可空' })
+  const reconnect = await confirm('断线自动重连？', { initial: true })
+
+  return {
+    instances: [
+      { host, port, ...(token ? { token } : {}), reconnect },
+    ],
+  }
+}
+
+export default run
+```
+
+要点：
+
+- 必须提供 `export default run`，主 CLI 会优先使用 default 导出，回退到具名 `run`。
+- 返回值即该适配器在 `mioki.adapters[<id>]` 下的最终 JSON，**不要**在这里写 `package.json`，写盘由主 CLI 统一处理。
+- 使用 `consola` 提问以保持与主 CLI 风格一致。
+
+### 3. 自执行入口（可选） {#cli-bin}
+
+如果希望用户可以单独运行 `npx mioki-adapter-xxx` 进入向导，再让脚本自执行一遍 prompt 并写盘：
+
+```ts
+import fs from 'node:fs'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+import consola from 'consola'
+
+// ... run 函数与上文一致 ...
+
+const isRunningAsMain = (): boolean => {
+  if (!process.argv[1]) return false
+  try {
+    return import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+  } catch {
+    return false
+  }
+}
+
+if (isRunningAsMain()) {
+  void (async () => {
+    const cwd = process.cwd()
+    const config = await run({ cwd })
+    const pkgPath = path.join(cwd, 'package.json')
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { mioki?: Record<string, unknown> }
+    pkg.mioki = pkg.mioki ?? {}
+    const adapters = (pkg.mioki.adapters as Record<string, unknown> | undefined) ?? {}
+    pkg.mioki.adapters = { ...adapters, xxx: config }
+    fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8')
+    consola.success('已写入 xxx 适配器配置')
+  })()
+}
+
+export default run
+```
+
+### 4. `package.json` 与构建产物 {#cli-package-json}
+
+把 `cli` 加为额外的构建入口，并在 `exports` 中暴露：
+
+```jsonc
+{
+  "bin": {
+    "mioki-adapter-xxx": "./dist/cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs"
+    },
+    "./cli": {
+      "require": "./dist/cli.cjs",
+      "import": "./dist/cli.mjs"
+    },
+    "./package.json": "./package.json"
+  }
+}
+```

@@ -6,11 +6,14 @@
 
 ## 安装适配器 {#install}
 
-将适配器安装为项目的直接依赖，然后在 `package.json` 的 `mioki.adapters` 中配置连接参数：
+将适配器安装为项目的直接依赖，然后在 `package.json` 的 `mioki.adapters` 中配置连接参数
 
 ```sh
 npm install mioki-adapter-onebotv11
+npx mioki-adapter-onebotv11   # 可选：进入连接参数配置向导
 ```
+
+也可以手动写入：
 
 ```jsonc
 {

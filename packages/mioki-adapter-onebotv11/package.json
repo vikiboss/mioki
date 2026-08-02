@@ -28,10 +28,17 @@
     "dev": "tsdown -w",
     "build": "tsdown"
   },
+  "bin": {
+    "mioki-adapter-onebotv11": "./dist/cli.mjs"
+  },
   "exports": {
     ".": {
       "require": "./dist/index.cjs",
       "import": "./dist/index.mjs"
+    },
+    "./cli": {
+      "require": "./dist/cli.cjs",
+      "import": "./dist/cli.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -41,6 +48,7 @@
     "mioki": "workspace:*"
   },
   "dependencies": {
+    "consola": "^3.4.2",
     "napcat-sdk": "workspace:*"
   },
   "devDependencies": {

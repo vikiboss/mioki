@@ -25,10 +25,10 @@ mioki 通过 `mioki-adapter-onebotv11` 适配器对接 NapCat，请先参考 [Na
 mioki 提供了交互式命令行工具，只需一条命令即可完成项目初始化。
 
 ::: tip 💡 快速跳过交互
-如果你已经知道 NapCat 的配置信息，可以通过参数一键创建：
+如果你已经知道所需的配置信息，可以通过参数一键创建：
 
 ```sh
-$ npx mioki@latest --name mioki-bot --port 3001 --token <你的Token> --owners <你的QQ>
+$ npx mioki@latest --name mioki-bot --owners <你的QQ>
 ```
 
 更多参数请参考 [CLI 参数说明](/mioki/api#cli)。
@@ -50,7 +50,7 @@ $ yarn dlx mioki@latest
 
 :::
 
-CLI 会依次引导你完成项目名称、NapCat 连接配置、权限设置等，创建完成后按提示启动即可。项目会自动安装 `mioki` 内核和 `mioki-adapter-onebotv11` 适配器。
+CLI 会依次引导你完成项目名称、权限设置等，并询问是否要安装适配器和插件，创建完成后按提示启动即可。
 
 ### 配置项说明
 

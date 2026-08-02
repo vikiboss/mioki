@@ -19,20 +19,33 @@ npx mioki@latest [选项]
 | `-h, --help`        | 显示帮助信息                      | -           |
 | `-v, --version`     | 显示版本号                        | -           |
 | `--name <name>`     | 指定项目/文件夹名称               | `bot`       |
-| `--host <host>`     | 指定 NapCat 主机                  | `localhost` |
-| `--port <port>`     | 指定 NapCat 端口                  | `3001`      |
-| `--token <token>`   | 指定 NapCat 连接令牌              | -           |
 | `--prefix <prefix>` | 指定命令前缀                      | `#`         |
 | `--owners <qq>`     | 指定主人 QQ，英文逗号分隔         | -           |
 | `--admins <qq>`     | 指定管理员 QQ，英文逗号分隔       | -           |
 | `--use-npm-mirror`  | 使用 npm 镜像源加速依赖安装       | `false`     |
+
+### 交互流程 {#cli-flow}
+
+CLI 会依次引导你完成项目配置，并在过程中询问是否安装适配器和插件：
+
+1. 项目名称
+2. 主人 QQ / 管理员 QQ
+3. 命令前缀
+4. 是否使用 npm 镜像源
+5. **是否安装适配器？**
+6. **是否安装插件？**
+
+选中的适配器/插件会写入 `dependencies`，插件同时会注册到 `mioki.plugins`。
+
+7. **配置适配器连接参数** —— 对每一个选中的适配器，CLI 会进入该适配器自带的配置向导，逐步询问连接信息。完成后结果会自动合并进 `package.json` 的 `mioki.adapters`。
+
 
 ### 使用示例 {#cli-examples}
 
 **一键创建**（跳过交互式提问）：
 
 ```sh
-npx mioki@latest --name my-bot --token abc123 --owners 123456789
+npx mioki@latest --name my-bot --owners 123456789
 ```
 
 **完整参数**：
@@ -40,9 +53,6 @@ npx mioki@latest --name my-bot --token abc123 --owners 123456789
 ```sh
 npx mioki@latest \
   --name my-bot \
-  --host localhost \
-  --port 3001 \
-  --token your-napcat-token \
   --prefix "#" \
   --owners 123456789,987654321 \
   --admins 111111111,222222222 \
