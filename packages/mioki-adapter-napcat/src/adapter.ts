@@ -2,8 +2,15 @@ import {
   asBotId,
   asMessageId,
   colors,
+  conversationGetHistory,
   defineAdapter,
-  messageReaction,
+  groupGetInfo,
+  groupGetMembers,
+  memberBan,
+  memberGetInfo,
+  memberKick,
+  memberSetAdmin,
+  memberSetCard,
   messageRecall,
   messageSend,
   registerStatusProvider,
@@ -233,10 +240,32 @@ const buildAdapter = (
       ctx.registerCapability(messageRecall, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
         await currentBot.recallMessage(req.message_id)
       }),
-      ctx.registerCapability(messageReaction, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
-        if (req.set) await currentBot.addReaction(req.message_id, req.reaction_id)
-        else await currentBot.removeReaction(req.message_id, req.reaction_id)
+      ctx.registerCapability(memberBan, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.banMember(req.group_id, req.user_id, req.duration)
       }),
+      ctx.registerCapability(memberKick, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.kickMember(req.group_id, req.user_id)
+      }),
+      ctx.registerCapability(memberSetCard, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.setMemberCard(req.group_id, req.user_id, req.card)
+      }),
+      ctx.registerCapability(memberSetAdmin, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.setMemberAdmin(req.group_id, req.user_id, req.enable)
+      }),
+      ctx.registerCapability(memberGetInfo, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getMemberInfo(req.group_id, req.user_id),
+      ),
+      ctx.registerCapability(groupGetInfo, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getGroupInfo(req.group_id),
+      ),
+      ctx.registerCapability(groupGetMembers, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getGroupMembers(req.group_id),
+      ),
+      ctx.registerCapability(
+        conversationGetHistory,
+        { adapter: adapterName, bot_id: currentBot.bot_id },
+        async (req) => currentBot.getHistory(req.target, req.before, req.limit),
+      ),
     ]
   }
 

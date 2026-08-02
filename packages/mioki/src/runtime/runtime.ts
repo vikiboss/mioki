@@ -116,12 +116,12 @@ export class MiokiRuntime {
     return state?.instance as T | undefined
   }
 
-  pickBot(bot_id: BotId): Bot | undefined {
-    return this.#bots.pick(bot_id)
+  pickBot<T extends Bot = Bot>(bot_id: BotId): T | undefined {
+    return this.#bots.pick<T>(bot_id)
   }
 
-  pickAdapterBot(adapter: AdapterName, bot_id: BotId): Bot | undefined {
-    return this.#bots.get(adapter, bot_id)
+  pickAdapterBot<T extends Bot = Bot>(adapter: AdapterName, bot_id: BotId): T | undefined {
+    return this.#bots.get<T>(adapter, bot_id)
   }
 
   listPlugins(): Array<{ name: string; type: 'builtin' | 'external'; version?: string }> {

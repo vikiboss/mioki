@@ -43,7 +43,7 @@ const buildAttachment = (data: Record<string, unknown>): Attachment | undefined 
   return attachment
 }
 
-const buildSegments = (raw: unknown[]): Message => {
+export const buildSegments = (raw: unknown[]): Message => {
   const segments = raw
     .filter((entry): entry is Record<string, unknown> & { type: string } => isObject(entry) && typeof entry.type === 'string')
     .filter((entry) => entry.type !== 'reply')

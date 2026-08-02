@@ -36,19 +36,19 @@ export class BotRegistry {
     return removed
   }
 
-  get(adapter: AdapterName, bot_id: BotId): Bot | undefined {
-    return this.#bots.get(buildKey(adapter, bot_id))?.bot
+  get<T extends Bot = Bot>(adapter: AdapterName, bot_id: BotId): T | undefined {
+    return this.#bots.get(buildKey(adapter, bot_id))?.bot as T | undefined
   }
 
-  pick(bot_id: BotId): Bot | undefined {
+  pick<T extends Bot = Bot>(bot_id: BotId): T | undefined {
     for (const entry of this.#bots.values()) {
-      if (entry.bot_id === bot_id) return entry.bot
+      if (entry.bot_id === bot_id) return entry.bot as T
     }
     return undefined
   }
 
-  all(): readonly Bot[] {
-    return Array.from(this.#bots.values()).map((entry) => entry.bot)
+  all<T extends Bot = Bot>(): readonly T[] {
+    return Array.from(this.#bots.values()).map((entry) => entry.bot as T)
   }
 
   size(): number {

@@ -115,12 +115,12 @@ export class MiokiContext {
     return this.bot?.bot_id
   }
 
-  pickBot(bot_id: BotId): Bot | undefined {
-    return this.#options.bots.pick(bot_id)
+  pickBot<T extends Bot = Bot>(bot_id: BotId): T | undefined {
+    return this.#options.bots.pick<T>(bot_id)
   }
 
-  pickAdapterBot(adapter: AdapterName, bot_id: BotId): Bot | undefined {
-    return this.#options.bots.get(adapter, bot_id)
+  pickAdapterBot<T extends Bot = Bot>(adapter: AdapterName, bot_id: BotId): T | undefined {
+    return this.#options.bots.get<T>(adapter, bot_id)
   }
 
   getAdapter<T extends Adapter = Adapter>(name: AdapterName): T | undefined {
