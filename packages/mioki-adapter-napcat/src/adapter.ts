@@ -1,6 +1,7 @@
 import {
   asBotId,
   asMessageId,
+  colors,
   defineAdapter,
   messageReaction,
   messageRecall,
@@ -61,6 +62,15 @@ const buildUrl = (config: NapCatInstanceConfig): string => {
   return `${protocol}://${host}:${port}${search}`
 }
 
+const buildMaskedUrl = (config: NapCatInstanceConfig): string => {
+  const protocol = config.protocol ?? DEFAULT_INSTANCE.protocol
+  const host = config.host ?? DEFAULT_INSTANCE.host
+  const port = config.port ?? DEFAULT_INSTANCE.port
+  const token = config.token ?? ''
+  const search = token ? '?access_token=***' : ''
+  return `${protocol}://${host}:${port}${search}`
+}
+
 const buildNoticeFromOneBot = (data: Record<string, unknown>): {
   notice_type: string
   sub_type?: string
@@ -94,8 +104,15 @@ const buildNoticeFromOneBot = (data: Record<string, unknown>): {
   }
 }
 
-const buildAdapter = (instance: NapCatInstanceConfig, adapterName: AdapterName, logger: Logger, gatewayName: string): Adapter => {
+const buildAdapter = (
+  instance: NapCatInstanceConfig,
+  adapterName: AdapterName,
+  logger: Logger,
+  gatewayName: string,
+  botLabel: string,
+): Adapter => {
   const url = buildUrl(instance)
+  const maskedUrl = buildMaskedUrl(instance)
   const dedup = new AdapterEventDeduplicator({ ttl: 60_000, maxSize: 1024 })
   const botData: NapCatBotData = {
     bot_id: asBotId(0),
@@ -192,6 +209,15 @@ const buildAdapter = (instance: NapCatInstanceConfig, adapterName: AdapterName, 
   const ensureBot = async (): Promise<void> => {
     if (!adapterContext || !gateway) throw new Error('NapCat adapter is not initialized')
     const loginInfo = await gateway.call<{ user_id: number | string; nickname: string }>('get_login_info')
+    let appName = ''
+    let appVersion = ''
+    try {
+      const versionInfo = await gateway.call<{ app_name: string; app_version: string }>('get_version_info')
+      appName = versionInfo.app_name
+      appVersion = versionInfo.app_version
+    } catch {
+      // ignore
+    }
     botData.bot_id = asBotId(loginInfo.user_id)
     botData.nickname = loginInfo.nickname
     botData.connected_at = Date.now()
@@ -201,6 +227,9 @@ const buildAdapter = (instance: NapCatInstanceConfig, adapterName: AdapterName, 
     }
     if (!botData.online) {
       botData.online = true
+      logger.info(
+        `已连接到 ${colors.cyan(botLabel)}: ${colors.green(`${appName}-v${appVersion} ${loginInfo.nickname}(${botData.bot_id})`)}`,
+      )
       await adapterContext.emitLifecycle({ type: 'bot:connected', bot })
     }
   }
@@ -231,6 +260,7 @@ const buildAdapter = (instance: NapCatInstanceConfig, adapterName: AdapterName, 
     async start(context: AdapterContext): Promise<void> {
       adapterContext = context
       const driver = context.getDriver()
+      logger.info(`>>> 正在连接 ${colors.cyan(botLabel)}: ${colors.green(maskedUrl)}`)
       const handlers = {
         async onMessage(payload: unknown): Promise<void> {
           if (!payload || typeof payload !== 'object') return
@@ -313,7 +343,7 @@ export const napcatAdapterDefinition = defineAdapter<NapCatAdapterConfig>({
   create: (options: AdapterFactoryOptions<NapCatAdapterConfig>): Adapter => {
     const instances = [...options.config.instances]
     const adapters = instances.map((instance, index) =>
-      buildAdapter(instance, ADAPTER_NAME, options.logger, `${ADAPTER_NAME}.gateway.${index + 1}`),
+      buildAdapter(instance, ADAPTER_NAME, options.logger, `${ADAPTER_NAME}.gateway.${index + 1}`, `Bot${index + 1}`),
     )
     return {
       name: ADAPTER_NAME,

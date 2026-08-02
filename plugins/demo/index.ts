@@ -52,9 +52,8 @@ export default definePlugin({
       ctx.logger.info('Notice', e)
     })
 
-    // 注册定时任务
-    ctx.cron('*/3 * * * * *', async (ctx, task) => {
-      ctx.logger.info('Cron', task)
+    ctx.cron('0 0 9 * * *', (ctx) => {
+      ctx.logger.info('每天早上 9 点执行')
     })
 
     return () => {

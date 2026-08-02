@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { hrtime } from 'node:process'
 
+import { colors } from 'consola/utils'
+
 import { botConfig, reloadMiokiConfig, setBotCwd } from '../config'
 import { createDefaultDriver, DriverShutdownError } from '../driver'
 import type { Driver } from '../driver'
@@ -171,7 +173,6 @@ export class MiokiRuntime {
     })
     cleanupTasks.push(() => ctx.dispose())
 
-    const start = hrtime.bigint()
     let cleanup: PluginCleanup | null = null
     try {
       const result = await plugin.setup?.(ctx)
@@ -191,12 +192,12 @@ export class MiokiRuntime {
       }
     }
     this.#enabledPlugins.set(`${type}:${plugin.name}`, { cleanup: wrappedCleanup, plugin })
-    const end = hrtime.bigint()
-    const ms = Math.round(Number(end - start)) / 1_000_000
-    this.#logger.info(`- 启用插件 [${type}] ${plugin.name}@${plugin.version ?? '0.0.0'} => ${ms.toFixed(2)}ms`)
   }
 
   async #setupBuiltinPlugins(): Promise<void> {
+    this.#logger.info(
+      `>>> 加载内置插件: ${this.#builtinPlugins.map((p) => colors.cyan(p.name)).join(', ')}`,
+    )
     for (const plugin of this.#builtinPlugins) {
       try {
         await this.#loadPlugin(plugin, 'builtin')
@@ -231,11 +232,15 @@ export class MiokiRuntime {
   }
 
   async #setupPlugins(): Promise<void> {
+    const startTime = hrtime.bigint()
     await this.#setupBuiltinPlugins()
 
     const appPkg = this.#readAppPackageJson()
     const enabledIds = new Set<string>(botConfig.plugins.map(String))
-    if (enabledIds.size === 0) return
+    if (enabledIds.size === 0) {
+      await this.#logPluginSummary(startTime)
+      return
+    }
 
     const candidates = discoverPluginCandidates(this.#cwd, appPkg)
     const candidateByName = new Map<string, PluginCandidate>(candidates.map((c) => [c.name, c]))
@@ -290,6 +295,16 @@ export class MiokiRuntime {
       priorityGroups.set(task.priority, group)
     }
     const priorities = Array.from(priorityGroups.keys()).sort((a, b) => a - b)
+    if (priorities.length > 0) {
+      this.#logger.info(
+        `>>> 加载用户插件: ${priorities
+          .map(
+            (priority) =>
+              `优先级 ${colors.yellow(priority)} (${(priorityGroups.get(priority) ?? []).map((t) => colors.cyan(t.name)).join(', ')})`,
+          )
+          .join('，')}`,
+      )
+    }
     for (const priority of priorities) {
       const group = priorityGroups.get(priority) ?? []
       await Promise.allSettled(group.map((t) => t.run()))
@@ -299,6 +314,17 @@ export class MiokiRuntime {
       const summary = failed.map((f) => `  - ${f.name}: ${f.error}`).join('\n')
       this.#logger.warn(`以下插件加载失败:\n${summary}`)
     }
+
+    await this.#logPluginSummary(startTime)
+  }
+
+  async #logPluginSummary(startTime: bigint): Promise<void> {
+    const end = hrtime.bigint()
+    const cost = Math.round(Number(end - startTime)) / 1_000_000
+    const enabledCount = this.#enabledPlugins.size
+    this.#logger.info(
+      `成功加载了 ${colors.green(enabledCount)} 个插件，总耗时 ${colors.green(cost.toFixed(2))} 毫秒`,
+    )
   }
 
   async #startAdapter(name: AdapterName): Promise<Adapter> {

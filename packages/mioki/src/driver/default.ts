@@ -9,7 +9,7 @@ import type {
   WebSocketConnection,
   WebSocketConnectOptions,
 } from './types'
-import { DriverShutdownError, HttpRequestError } from './types'
+import { DriverShutdownError, HttpRequestError, WebSocketConnectTimeoutError } from './types'
 
 const RAW_TEXT_DECODER = new TextDecoder()
 
@@ -218,8 +218,23 @@ const createWebSocketClient = (state: DriverState): WebSocketClient => {
         if (signal.aborted) abortFromExternal()
         else signal.addEventListener('abort', abortFromExternal, { once: true })
       }
+      const timeout = options.connectTimeout ?? state.connectTimeout
+      let timer: ReturnType<typeof setTimeout> | null = null
+      let rejectConnect: ((err: Error) => void) | null = null
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          externalAbort = true
+          try {
+            socket.close(1001, 'connect timeout')
+          } catch {
+            // ignore
+          }
+          rejectConnect?.(new WebSocketConnectTimeoutError(url, timeout))
+        }, timeout)
+      }
       try {
         await new Promise<void>((resolve, reject) => {
+          rejectConnect = reject
           socket.addEventListener('open', () => resolve(), { once: true })
           socket.addEventListener('error', (event) => {
             if (externalAbort) return
@@ -234,6 +249,9 @@ const createWebSocketClient = (state: DriverState): WebSocketClient => {
           // ignore
         }
         throw err instanceof Error ? err : new Error('WebSocket connect failed')
+      } finally {
+        if (timer) clearTimeout(timer)
+        rejectConnect = null
       }
       const conn = new NodeWebSocketConnection(socket, url)
       state.connections.add(conn)
@@ -251,10 +269,12 @@ interface DriverState {
   connections: Set<WebSocketConnection>
   rootController: AbortController
   requestTimeout: number
+  connectTimeout: number
 }
 
 export interface CreateDriverOptions {
   readonly requestTimeout?: number
+  readonly connectTimeout?: number
 }
 
 export const createDefaultDriver = (options: CreateDriverOptions = {}): Driver => {
@@ -263,6 +283,7 @@ export const createDefaultDriver = (options: CreateDriverOptions = {}): Driver =
     connections: new Set(),
     rootController: new AbortController(),
     requestTimeout: options.requestTimeout ?? 30_000,
+    connectTimeout: options.connectTimeout ?? 15_000,
   }
   const http = createHttpClient(state)
   const websocket = createWebSocketClient(state)

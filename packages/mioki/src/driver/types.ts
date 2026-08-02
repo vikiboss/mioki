@@ -15,6 +15,7 @@ export interface WebSocketConnectOptions {
   readonly headers?: Readonly<Record<string, string>>
   readonly protocols?: readonly string[]
   readonly signal?: AbortSignal
+  readonly connectTimeout?: number
 }
 
 export interface WebSocketClient {
@@ -54,6 +55,13 @@ export class DriverShutdownError extends Error {
   constructor(message = 'Driver has been shut down') {
     super(message)
     this.name = 'DriverShutdownError'
+  }
+}
+
+export class WebSocketConnectTimeoutError extends Error {
+  constructor(url: string, timeout: number) {
+    super(`WebSocket connect timed out after ${timeout}ms: ${url}`)
+    this.name = 'WebSocketConnectTimeoutError'
   }
 }
 
