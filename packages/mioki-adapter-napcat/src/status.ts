@@ -3,7 +3,9 @@ import { asAdapterName } from 'mioki'
 import type { AdapterStatus } from 'mioki'
 import type { NapCatBot } from './bot'
 
-export const createNapCatStatusProvider = (): ((ctx: { bot: NapCatBot }) => Promise<AdapterStatus>) => {
+export const createNapCatStatusProvider = (
+  getStats: () => { send: number; receive: number } = () => ({ send: 0, receive: 0 }),
+): ((ctx: { bot: NapCatBot }) => Promise<AdapterStatus>) => {
   return async ({ bot }) => {
     try {
       const [versionInfo, friendList, groupList] = await Promise.all([
@@ -11,6 +13,7 @@ export const createNapCatStatusProvider = (): ((ctx: { bot: NapCatBot }) => Prom
         bot.getFriendList(),
         bot.getGroupList(),
       ])
+      const stats = getStats()
       return {
         adapter: asAdapterName('napcat'),
         version: versionInfo.app_version,
@@ -19,6 +22,8 @@ export const createNapCatStatusProvider = (): ((ctx: { bot: NapCatBot }) => Prom
           protocol_version: versionInfo.protocol_version,
           friends: friendList.length,
           groups: groupList.length,
+          send: stats.send,
+          receive: stats.receive,
         },
       }
     } catch {

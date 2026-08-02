@@ -124,7 +124,7 @@ class ScopedLogger implements Logger {
   }
 
   #tagWithScope(): string {
-    const tags = [this.#tag, ...Object.entries(this.#scope).map(([k, v]) => `${k}=${String(v)}`)].filter(Boolean)
+    const tags = [this.#tag, ...Object.entries(this.#scope).map(([k, v]) => `${k}:${String(v)}`)].filter(Boolean)
     return tags.join(':')
   }
 

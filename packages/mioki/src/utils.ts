@@ -2,9 +2,9 @@ import crypto from 'node:crypto'
 import { BOT_CWD } from './config'
 import { createJiti } from 'jiti'
 import mriLib from 'mri'
-import string2argvLib from 'string2argv'
 import { Low } from 'lowdb'
 import { DataFile } from 'lowdb/node'
+import { string2argv } from 'string2argv'
 
 import type { Message } from './adapter'
 import type { BinaryLike, BinaryToTextEncoding } from 'node:crypto'
@@ -55,7 +55,7 @@ export const createCmd = (
   options: CreateCmdOptions = {},
 ): { cmd: string | undefined; params: string[]; options: Record<string, unknown> } => {
   const { prefix = '', onPrefix = () => undefined } = options
-  const { _, ...cmdOptions } = mriLib(string2argvLib(cmdStr))
+  const { _, ...cmdOptions } = mriLib(string2argv(cmdStr))
   const [cmd, ...params] = _ as string[]
   if (prefix) {
     if (cmd !== prefix) return { cmd: undefined, params: [], options: cmdOptions }

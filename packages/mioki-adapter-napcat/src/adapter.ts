@@ -20,6 +20,7 @@ import {
   buildRequestEvent,
   decodeWsMessage,
 } from './event'
+import { stringifyMessage } from './message'
 
 import type {
   Adapter,
@@ -28,8 +29,11 @@ import type {
   AdapterName,
 } from 'mioki'
 import type { NapCatAdapterConfig, NapCatInstanceConfig } from './config'
-import type { AdapterStatus, Capability, Event, Logger, Bot } from 'mioki'
+import type { AdapterStatus, Capability, Event, Logger, Bot, MessageEvent } from 'mioki'
 import type { WebSocketConnection } from 'mioki'
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const NAPCAT_NOTICE_NOTIFY_MAP: Record<string, { notice_type: string; sub_type: string }> = {
   input_status: { notice_type: 'friend', sub_type: 'input' },
@@ -69,6 +73,29 @@ const buildMaskedUrl = (config: NapCatInstanceConfig): string => {
   const token = config.token ?? ''
   const search = token ? '?access_token=***' : ''
   return `${protocol}://${host}:${port}${search}`
+}
+
+const logMessage = (logger: Logger, data: Record<string, unknown>, event: MessageEvent): void => {
+  const msg = stringifyMessage(event.message)
+  const sender = isObject(data.sender) && typeof data.sender.nickname === 'string'
+    ? `${data.sender.nickname}(${event.user_id})`
+    : `(${event.user_id})`
+  if (event.message_type === 'group') {
+    const groupName = typeof data.group_name === 'string' ? data.group_name : ''
+    logger.info(`[群:${groupName}(${event.group_id})] ${sender}: ${msg}`)
+  } else {
+    logger.info(`[私:${sender}] ${msg}`)
+  }
+}
+
+const logMessageSent = (logger: Logger, data: Record<string, unknown>, event: MessageEvent): void => {
+  const msg = stringifyMessage(event.message)
+  if (event.message_type === 'group') {
+    const groupName = typeof data.group_name === 'string' ? data.group_name : ''
+    logger.info(`[>>>:群:${groupName}(${event.group_id})] ${msg}`)
+  } else {
+    logger.info(`[>>>:私:(${event.user_id})] ${msg}`)
+  }
 }
 
 const buildNoticeFromOneBot = (data: Record<string, unknown>): {
@@ -126,6 +153,8 @@ const buildAdapter = (
   let unregisterBot: (() => void) | null = null
   let unregisterCapabilities: Array<() => void> = []
   let unregisterStatus: (() => void) | null = null
+  let sendCount = 0
+  let receiveCount = 0
 
   const handleEvent = async (data: Record<string, unknown>): Promise<void> => {
     if (!bot || !adapterContext) return
@@ -141,19 +170,24 @@ const buildAdapter = (
     if (dedup.isDuplicate(identity)) return
 
     if (data.post_type === 'message') {
-      await adapterContext.dispatch(buildMessageEvent({
+      receiveCount++
+      const event = buildMessageEvent({
         adapter: adapterName,
         bot,
         data: data as Parameters<typeof buildMessageEvent>[0]['data'],
-      }))
+      })
+      logMessage(logger, data, event)
+      await adapterContext.dispatch(event)
       return
     }
     if (data.post_type === 'message_sent') {
-      await adapterContext.dispatch(buildMessageEvent({
+      const event = buildMessageEvent({
         adapter: adapterName,
         bot,
         data: data as Parameters<typeof buildMessageEvent>[0]['data'],
-      }))
+      })
+      logMessageSent(logger, data, event)
+      await adapterContext.dispatch(event)
       return
     }
     if (data.post_type === 'notice') {
@@ -222,7 +256,7 @@ const buildAdapter = (
     botData.nickname = loginInfo.nickname
     botData.connected_at = Date.now()
     if (!bot) {
-      bot = createNapCatBot({ data: botData, api: gateway.call, logger })
+      bot = createNapCatBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ })
       registerBotCapabilities(adapterContext, bot)
     }
     if (!botData.online) {
@@ -296,7 +330,7 @@ const buildAdapter = (
         },
         handlers,
       )
-      const statusProvider = createNapCatStatusProvider()
+      const statusProvider = createNapCatStatusProvider(() => ({ send: sendCount, receive: receiveCount }))
       unregisterStatus = registerStatusProvider(adapterName, ({ bot: currentBot }: { bot: Bot }) =>
         statusProvider({ bot: currentBot as NapCatBot }),
       )

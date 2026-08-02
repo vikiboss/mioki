@@ -15,6 +15,14 @@ import type { TaskContext } from 'node-cron'
 import type { CapabilityRegistry } from '../adapter'
 import type { BotRegistry } from './bots'
 
+export interface PluginManager {
+  list(): Array<{ name: string; type: 'builtin' | 'external'; version?: string }>
+  localPlugins(): string[]
+  enable(name: string): Promise<void>
+  disable(name: string): Promise<void>
+  reload(name: string): Promise<void>
+}
+
 export interface ContextOptions {
   readonly pluginName: string
   readonly bus: EventBus
@@ -26,6 +34,7 @@ export interface ContextOptions {
   readonly priority: number
   readonly getAdapter: <T extends Adapter = Adapter>(name: AdapterName) => T | undefined
   readonly onUpdateConfig: (updater: (config: MiokiConfig) => void | Promise<void>) => Promise<void>
+  readonly pluginManager: PluginManager
 }
 
 export interface ContextLike {
@@ -76,7 +85,7 @@ export type EventKindOfRoute<R extends string> = R extends `message${string}`
 
 export type RouteEvent<R extends string | readonly string[]> = R extends readonly string[]
   ? EventKindOfRoute<R[number]>
-  : EventKindOfRoute<R>
+  : EventKindOfRoute<Extract<R, string>>
 
 export class MiokiContext {
   readonly #options: ContextOptions
@@ -184,6 +193,10 @@ export class MiokiContext {
 
   get logger(): Logger {
     return this.#options.logger
+  }
+
+  get plugins(): PluginManager {
+    return this.#options.pluginManager
   }
 
   get capabilities(): CapabilityRegistry {

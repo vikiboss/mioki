@@ -4,7 +4,7 @@ import { hrtime } from 'node:process'
 
 import { colors } from 'consola/utils'
 
-import { botConfig, reloadMiokiConfig, setBotCwd } from '../config'
+import { botConfig, reloadMiokiConfig, setBotCwd, updateMiokiConfig } from '../config'
 import { createDefaultDriver, DriverShutdownError } from '../driver'
 import type { Driver } from '../driver'
 import { CapabilityRegistry } from '../adapter'
@@ -124,6 +124,64 @@ export class MiokiRuntime {
     return this.#bots.get(adapter, bot_id)
   }
 
+  listPlugins(): Array<{ name: string; type: 'builtin' | 'external'; version?: string }> {
+    return Array.from(this.#enabledPlugins.entries()).map(([key, entry]) => {
+      const [type, ...rest] = key.split(':')
+      return {
+        name: rest.join(':'),
+        type: type === 'builtin' ? 'builtin' : 'external',
+        version: entry.plugin.version,
+      }
+    })
+  }
+
+  async enablePlugin(name: string): Promise<void> {
+    const isEnabled = this.#enabledPlugins.has(`external:${name}`) || this.#enabledPlugins.has(`builtin:${name}`)
+    if (isEnabled) throw new Error(`插件 ${name} 已经是启用状态`)
+    const appPkg = this.#readAppPackageJson()
+    const jiti = createImportContext(this.#cwd)
+    const local = findLocalPlugins(this.#cwd, botConfig.plugins_dir ?? 'plugins').find((p) => p.name === name)
+    if (local) {
+      const plugin = await loadLocalPlugin(jiti, name, local.absPath)
+      await this.#loadPlugin(plugin, 'external')
+      return
+    }
+    const candidates = discoverPluginCandidates(this.#cwd, appPkg)
+    const candidate = candidates.find((c) => c.name === name)
+    if (candidate) {
+      const plugin = await loadNpmPlugin(jiti, candidate)
+      await this.#loadPlugin(plugin, 'external')
+      return
+    }
+    throw new Error(`插件 ${name} 不存在`)
+  }
+
+  async disablePlugin(name: string): Promise<void> {
+    const key = `external:${name}`
+    const entry = this.#enabledPlugins.get(key)
+    if (!entry) {
+      if (this.#enabledPlugins.has(`builtin:${name}`)) throw new Error(`内置插件 ${name} 无法禁用`)
+      throw new Error(`插件 ${name} 不存在或未启用`)
+    }
+    try {
+      await entry.cleanup?.()
+    } finally {
+      this.#enabledPlugins.delete(key)
+    }
+    this.#logger.info(`禁用插件 => ${name}`)
+  }
+
+  async reloadPlugin(name: string): Promise<void> {
+    const wasExternal = this.#enabledPlugins.has(`external:${name}`)
+    const wasBuiltin = this.#enabledPlugins.has(`builtin:${name}`)
+    if (!wasExternal && !wasBuiltin) {
+      await this.enablePlugin(name)
+      return
+    }
+    if (wasExternal) await this.disablePlugin(name)
+    await this.enablePlugin(name)
+  }
+
   async #emitLifecycle(event: BotLifecycleEvent): Promise<void> {
     const lifecycleEvent: Event = {
       kind: 'adapter',
@@ -168,7 +226,14 @@ export class MiokiRuntime {
       priority: plugin.priority ?? 100,
       getAdapter: <T extends Adapter = Adapter>(name: AdapterName) => this.getAdapter<T>(name),
       onUpdateConfig: async (updater) => {
-        await updater(botConfig)
+        await updateMiokiConfig(updater)
+      },
+      pluginManager: {
+        list: () => this.listPlugins(),
+        localPlugins: () => findLocalPlugins(this.#cwd, botConfig.plugins_dir ?? 'plugins').map((p) => p.name),
+        enable: (name) => this.enablePlugin(name),
+        disable: (name) => this.disablePlugin(name),
+        reload: (name) => this.reloadPlugin(name),
       },
     })
     cleanupTasks.push(() => ctx.dispose())

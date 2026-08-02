@@ -2,6 +2,8 @@ import os from 'node:os'
 import cp from 'node:child_process'
 import { version } from '../../../package.json' with { type: 'json' }
 
+import { filesize, localNum, prettyMs } from '../../utils'
+
 import type { Bot } from '../../adapter'
 import type { AdapterName, AdapterStatus } from '../../types'
 
@@ -25,6 +27,10 @@ export interface BotStatus {
   nickname: string
   online: boolean
   adapter: AdapterName
+  friends?: number
+  groups?: number
+  send?: number
+  receive?: number
 }
 
 export interface MiokiStatus {
@@ -189,12 +195,20 @@ export const buildMiokiStatus = async (options: BuildStatusOptions): Promise<Mio
     }
   }
   return {
-    bots: options.bots.map((bot) => ({
-      bot_id: bot.bot_id,
-      nickname: bot.nickname ?? '',
-      online: bot.online,
-      adapter: bot.adapter,
-    })),
+    bots: options.bots.map((bot) => {
+      const adapterStatus = adapterStatuses.find((a) => a.adapter === bot.adapter)
+      const data = adapterStatus?.data as Record<string, unknown> | undefined
+      return {
+        bot_id: bot.bot_id,
+        nickname: bot.nickname ?? '',
+        online: bot.online,
+        adapter: bot.adapter,
+        friends: typeof data?.friends === 'number' ? data.friends : undefined,
+        groups: typeof data?.groups === 'number' ? data.groups : undefined,
+        send: typeof data?.send === 'number' ? data.send : undefined,
+        receive: typeof data?.receive === 'number' ? data.receive : undefined,
+      }
+    }),
     adapters: adapterStatuses,
     plugins: { enabled: options.enabledPlugins, total: options.totalPlugins },
     stats: { uptime: process.uptime() * 1000 },
@@ -216,26 +230,38 @@ export const buildMiokiStatus = async (options: BuildStatusOptions): Promise<Mio
 
 export const formatMiokiStatus = async (status: MiokiStatus): Promise<string> => {
   const { bots, plugins, system, disk, cpu, memory, versions, adapters } = status
-  const diskValid = disk.total > 0 && disk.free >= 0
-  const diskDesc = diskValid ? `${disk.percent}%-${(disk.used / 1024 / 1024).toFixed(1)}MB/${(disk.total / 1024 / 1024).toFixed(1)}MB` : ''
-  const botLines = bots
-    .map((bot) => `👤 ${bot.nickname || '(未命名)'} (${bot.bot_id}) [${bot.adapter}]\n   在线: ${bot.online ? '✅' : '❌'}`)
-    .join('\n')
-  const adapterLines = adapters
-    .map((adapter) => `🧩 ${adapter.adapter} ${adapter.version ?? ''}`)
-    .join('\n')
   const [firstFormatter] = statusFormatters
   if (firstFormatter) return await firstFormatter(status)
+
+  const diskValid = disk.total > 0 && disk.free >= 0
+  const diskDesc = diskValid ? `${disk.percent}%-${filesize(disk.used, { round: 1 })}/${filesize(disk.total, { round: 1 })}` : ''
+
+  const botLines = bots
+    .map((bot) => {
+      const hasStats = bot.friends != null || bot.groups != null || bot.send != null || bot.receive != null
+      const statsLine = hasStats
+        ? `\n📋 ${localNum(bot.friends ?? 0)} 好友 / ${localNum(bot.groups ?? 0)} 群 / 📮 收 ${localNum(bot.receive ?? 0)} 发 ${localNum(bot.send ?? 0)}`
+        : ''
+      return `👤 ${bot.nickname || '(未命名)'} (${bot.bot_id})${statsLine}`
+    })
+    .join('\n')
+
+  const totalSend = bots.reduce((sum, bot) => sum + (bot.send ?? 0), 0)
+  const totalReceive = bots.reduce((sum, bot) => sum + (bot.receive ?? 0), 0)
+  const statsLine = bots.length > 1 ? `\n📮 总计: 收 ${localNum(totalReceive)} 条，发 ${localNum(totalSend)} 条` : ''
+
+  const adapter = adapters[0]
+  const adapterLine = adapter ? `${adapter.adapter}/${adapter.version ?? ''}` : `node/${versions.node.split('.')[0]}`
+
   return `
 〓 🟢 mioki 状态 〓
 ${botLines || '(无在线 Bot)'}
-${adapterLines ? `\n${adapterLines}` : ''}
-🧩 启用了 ${plugins.enabled} 个插件，共 ${plugins.total} 个
-🚀 ${(memory.rss.used / 1024 / 1024).toFixed(1)}MB/${memory.percent}%
-⏳ 已运行 ${Math.floor(status.stats.uptime / 1000)} 秒
-🤖 mioki/${versions.mioki}-node/${versions.node.split('.')[0]}
-🖥️ ${system.name.split(' ')[0]}/${system.version.split('.')[0]}-${system.name}
-📊 ${memory.percent}%-${(memory.used / 1024 / 1024).toFixed(1)}MB/${(memory.total / 1024 / 1024).toFixed(1)}MB
+🧩 启用了 ${localNum(plugins.enabled)} 个插件，共 ${localNum(plugins.total)} 个${statsLine}
+🚀 ${filesize(memory.rss.used, { round: 1 })}/${memory.percent}%
+⏳ 已运行 ${prettyMs(status.stats.uptime, { hideYear: true, secondsDecimalDigits: 0 })}
+🤖 mioki/${versions.mioki}-${adapterLine}
+🖥️ ${system.name.split(' ')[0]}/${system.version.split('.')[0]}-${system.name}-node/${versions.node.split('.')[0]}
+📊 ${memory.percent}%-${filesize(memory.used, { base: 2, round: 1 })}/${filesize(memory.total, { base: 2, round: 1 })}
 🧮 ${cpu.percent}%-${cpu.name}-${cpu.count}核
 ${diskValid ? `💾 ${diskDesc}` : ''}
   `.trim()

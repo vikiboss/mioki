@@ -32,7 +32,7 @@ export interface Message extends ReadonlyArray<MessageSegment> {
   toJSON(): SerializedMessageSegment[]
 }
 
-export type MessageInput = string | Message | MessageSegment | readonly MessageSegment[]
+export type MessageInput = string | Message | MessageSegment | readonly (string | MessageSegment)[]
 
 export interface MessageTarget {
   readonly type: string
@@ -144,5 +144,9 @@ export const asMessage = (input: MessageInput): Message => {
   if (isMessage(input)) return input
   if (typeof input === 'string') return new MessageImpl([new MessageSegmentImpl('text', { text: input })])
   if (isSegment(input)) return new MessageImpl([input])
-  return new MessageImpl(input)
+  return new MessageImpl(
+    (input as readonly (string | MessageSegment)[]).map((item) =>
+      typeof item === 'string' ? new MessageSegmentImpl('text', { text: item }) : item,
+    ),
+  )
 }

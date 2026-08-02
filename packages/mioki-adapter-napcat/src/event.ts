@@ -1,4 +1,5 @@
-import { asMessageId, createMessage, MessageSegmentImpl } from 'mioki'
+import { asMessage, asMessageId, createMessage, MessageSegmentImpl } from 'mioki'
+import { segment } from './message'
 
 import type {
   Attachment,
@@ -47,8 +48,8 @@ const buildSegments = (raw: unknown[]): Message => {
     .filter((entry): entry is Record<string, unknown> & { type: string } => isObject(entry) && typeof entry.type === 'string')
     .filter((entry) => entry.type !== 'reply')
     .map((entry) => {
-      const data = { ...entry }
-      delete (data as Record<string, unknown>).type
+      const rawData = isObject(entry.data) ? (entry.data as Record<string, unknown>) : {}
+      const data = { ...rawData }
       const attachment = buildAttachment(data)
       return new MessageSegmentImpl(entry.type, data, attachment)
     })
@@ -146,11 +147,15 @@ export const buildMessageEvent = (params: {
     is_to_me: typeof data.target_id === 'number' || typeof data.target_id === 'string'
       ? String(data.target_id) === String(bot.bot_id)
       : false,
-    reply: async (input) => {
+    reply: async (input, options) => {
       const replyOptions = isGroup
         ? ({ type: 'group', group_id: groupId } as const)
         : ({ type: 'private', user_id: userId } as const)
-      const sent = await bot.sendMessage(replyOptions, input)
+      let content = input
+      if (options?.quote && messageId) {
+        content = [segment.reply(messageId), ...asMessage(input)]
+      }
+      const sent = await bot.sendMessage(replyOptions, content)
       return sent
     },
   }

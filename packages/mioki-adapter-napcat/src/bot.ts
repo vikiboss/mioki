@@ -68,8 +68,9 @@ export const createNapCatBot = (params: {
   data: NapCatBotData
   api: ApiCaller
   logger: import('mioki').Logger
+  onSend?: () => void
 }): NapCatBot => {
-  const { data, api, logger } = params
+  const { data, api, logger, onSend } = params
   const bot: NapCatBot = {
     get bot_id(): BotId {
       return data.bot_id
@@ -90,10 +91,12 @@ export const createNapCatBot = (params: {
       }
       if (target.type === 'group' && target.group_id) {
         const sent = await api('send_group_msg', { group_id: target.group_id, message: buildPayload(message) })
+        onSend?.()
         return sentFromOneBot(sent as { message_id?: number | string })
       }
       if (target.type === 'private' && target.user_id) {
         const sent = await api('send_private_msg', { user_id: target.user_id, message: buildPayload(message) })
+        onSend?.()
         return sentFromOneBot(sent as { message_id?: number | string })
       }
       throw new Error(`Unsupported target type: ${target.type}`)
