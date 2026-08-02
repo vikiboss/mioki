@@ -280,7 +280,7 @@ export class MiokiRuntime {
     for (const name of enabledNames) {
       const candidate = candidateByName.get(name)
       if (!candidate) {
-        throw new Error(`已配置适配器 "${name}"，但它不在项目直接依赖中或 manifest 无效`)
+        throw new Error(`已配置适配器 "${name}"，但它不在项目直接依赖中`)
       }
       const loaded = await loadAdapterDefinition(jiti, candidate)
       this.#enabledAdapters.set(name, loaded.definition)

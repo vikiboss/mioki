@@ -7,11 +7,13 @@
 在开始之前，请确保你的环境满足以下条件：
 
 - **Node.js**：版本 >= 22.18.0（可以直接运行 TS，推荐使用 LTS 版本）
-- **NapCat**：已部署并运行的 [NapCat](https://napneko.github.io/) 实例
+- **客户端实例**：可连接的客户端实例，例如OneBot、ICQQ、Milky等，根据需要进行选择
 
 ## 安装 NapCat {#install-napcat}
 
-mioki 依赖 NapCat 作为 QQ 协议端，请先参考 [NapCat 官方文档](https://napneko.github.io/) 完成 NapCat 的安装和配置。
+> 这里以 NapCat 作为客户端示例演示
+
+mioki 通过 `mioki-adapter-onebotv11` 适配器对接 NapCat，请先参考 [NapCat 官方文档](https://napneko.github.io/) 完成 NapCat 的安装和配置。
 
 配置 NapCat 时，请确保：
 
@@ -48,47 +50,59 @@ $ yarn dlx mioki@latest
 
 :::
 
-CLI 会依次引导你完成项目名称、NapCat 连接配置、权限设置等，创建完成后按提示启动即可。
+CLI 会依次引导你完成项目名称、NapCat 连接配置、权限设置等，创建完成后按提示启动即可。项目会自动安装 `mioki` 内核和 `mioki-adapter-onebotv11` 适配器。
 
 ### 配置项说明
 
 配置文件 `package.json` 中会生成一个 `mioki` 字段，包含：
 
-| 配置项              | 类型           | 默认值        | 说明                                                |
-| ------------------- | -------------- | ------------- | --------------------------------------------------- |
-| `prefix`            | `string`       | `"#"`         | 指令前缀，用于识别框架指令                          |
-| `owners`            | `number[]`     | `[]`          | 机器人主人 QQ 号列表，拥有最高权限                  |
-| `admins`            | `number[]`     | `[]`          | 机器人管理员 QQ 号列表                              |
-| `plugins`           | `string[]`     | `[]`          | 启用的插件列表（插件目录名）                        |
-| `log_level`         | `string`       | `"info"`      | 日志级别：`trace`、`debug`、`info`、`warn`、`error` |
-| `plugins_dir`       | `string`       | `"./plugins"` | 插件目录路径                                        |
-| `error_push`        | `boolean`      | `false`       | 是否将未捕获的错误推送给主人                        |
-| `online_push`       | `boolean`      | `false`       | 机器人上线时是否通知主人                            |
-| `status_permission` | `string`       | `"all"`       | 状态命令权限：`admin-only` 仅管理可用，默认所有人   |
-| `napcat`            | `NapCatConfig` | -             | NapCat 实例配置，支持多个实例                       |
+| 配置项                 | 类型         | 默认值         | 说明                                         |
+|---------------------|------------|-------------|--------------------------------------------|
+| `prefix`            | `string`   | `"#"`       | 指令前缀，用于识别框架指令                              |
+| `owners`            | `string[]` | `[]`        | 机器人主人 QQ 号列表，拥有最高权限                        |
+| `admins`            | `string[]` | `[]`        | 机器人管理员 QQ 号列表                              |
+| `plugins`           | `string[]` | `[]`        | 启用的插件列表（插件目录名）                             |
+| `log_level`         | `string`   | `"info"`    | 日志级别：`trace`、`debug`、`info`、`warn`、`error` |
+| `plugins_dir`       | `string`   | `"plugins"` | 插件目录路径                                     |
+| `error_push`        | `boolean`  | `false`     | 是否将未捕获的错误推送给主人                             |
+| `online_push`       | `boolean`  | `false`     | 机器人上线时是否通知主人                               |
+| `status_permission` | `string`   | `"all"`     | 状态命令权限：`admin-only` 仅管理可用，默认所有人            |
+| `adapters`          | `object`   | -           | 适配器配置，见下方示例                                |
 
-#### NapCat 配置（NapCatConfig）
+#### 适配器配置（adapters）
 
 ```json
 {
+  "dependencies": {
+    "mioki": "^0.16.0",
+    "mioki-adapter-onebotv11": "^0.16.0"
+  },
   "mioki": {
-    "napcat": [
-      {
-        "protocol": "ws",
-        "host": "localhost",
-        "port": 3001,
-        "token": "token1"
-      },
-      {
-        "protocol": "ws",
-        "host": "localhost",
-        "port": 3002,
-        "token": "token2"
+    "owners": ["123456789"],
+    "plugins": [],
+    "adapters": {
+      "onebotv11": {
+        "instances": [
+          {
+            "protocol": "ws",
+            "host": "localhost",
+            "port": 3001,
+            "token": "token1"
+          },
+          {
+            "protocol": "ws",
+            "host": "localhost",
+            "port": 3002,
+            "token": "token2"
+          }
+        ]
       }
-    ]
+    }
   }
 }
 ```
+
+适配器必须显式安装为直接依赖，并在 `adapters.<name>` 下配置连接参数。连接多开只需在 `instances` 数组中追加即可
 
 ## 启动机器人 {#run}
 
@@ -117,20 +131,20 @@ mioki v1.0.0 启动完成，祝您使用愉快 🎉️
 
 mioki 内置了一些管理指令（仅主人可用），默认使用 `#` 作为指令前缀：
 
-| 指令                   | 说明             |
-| ---------------------- | ---------------- |
-| `#帮助`                | 显示帮助信息     |
-| `#状态`                | 显示框架运行状态 |
-| `#插件 列表`           | 查看所有插件     |
-| `#插件 启用 <插件名>`  | 启用指定插件     |
-| `#插件 禁用 <插件名>`  | 禁用指定插件     |
-| `#插件 重载 <插件名>`  | 重载指定插件     |
-| `#设置 详情`           | 查看当前配置     |
-| `#设置 加主人 <QQ/AT>` | 添加主人         |
-| `#设置 删主人 <QQ/AT>` | 删除主人         |
-| `#设置 加管理 <QQ/AT>` | 添加管理员       |
-| `#设置 删管理 <QQ/AT>` | 删除管理员       |
-| `#退出`                | 退出机器人进程   |
+| 指令                | 说明       |
+|-------------------|----------|
+| `#帮助`             | 显示帮助信息   |
+| `#状态`             | 显示框架运行状态 |
+| `#插件 列表`          | 查看所有插件   |
+| `#插件 启用 <插件名>`    | 启用指定插件   |
+| `#插件 禁用 <插件名>`    | 禁用指定插件   |
+| `#插件 重载 <插件名>`    | 重载指定插件   |
+| `#设置 详情`          | 查看当前配置   |
+| `#设置 加主人 <QQ/AT>` | 添加主人     |
+| `#设置 删主人 <QQ/AT>` | 删除主人     |
+| `#设置 加管理 <QQ/AT>` | 添加管理员    |
+| `#设置 删管理 <QQ/AT>` | 删除管理员    |
+| `#退出`             | 退出机器人进程  |
 
 ## 目录结构 {#structure}
 
@@ -151,4 +165,4 @@ bot/
 
 - 阅读 [插件开发指南](/plugin) 学习如何编写插件
 - 查看 [mioki API 文档](/mioki/api) 了解更多 API
-- 探索 [NapCat SDK 文档](/napcat-sdk/) 了解底层能力
+- 探索 [适配器商店](/mioki/adapter-store) 寻找更多平台支持

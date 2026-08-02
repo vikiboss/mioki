@@ -23,9 +23,9 @@ export interface SerializedMessageSegment {
 }
 
 export interface Message extends ReadonlyArray<MessageSegment> {
+  readonly raw_message?: string
   toString(): string
   text(): string
-  findByType<T extends MessageSegment = MessageSegment>(type: string): T | undefined
   filterByType<T extends MessageSegment = MessageSegment>(type: string): T[]
   toJSON(): SerializedMessageSegment[]
 }
@@ -78,8 +78,10 @@ export class MessageSegmentImpl implements MessageSegment {
 }
 
 class MessageImpl extends Array<MessageSegment> implements Message {
-  constructor(segments: readonly MessageSegment[] | number) {
+  readonly raw_message: string | undefined
+  constructor(segments: readonly MessageSegment[] | number, rawMessage?: string) {
     super()
+    this.raw_message = rawMessage
     if (typeof segments === 'number') {
       this.length = segments
       return
@@ -92,13 +94,7 @@ class MessageImpl extends Array<MessageSegment> implements Message {
   }
 
   text(): string {
-    return this.filter((seg) => seg.type === 'text')
-      .map((seg) => (typeof seg.data.text === 'string' ? seg.data.text : ''))
-      .join('')
-  }
-
-  findByType<T extends MessageSegment = MessageSegment>(type: string): T | undefined {
-    return this.find((seg): seg is T => seg.type === type)
+    return this.raw_message ?? this.filterByType('text').map((seg) => String(seg.data.text ?? '')).join('')
   }
 
   filterByType<T extends MessageSegment = MessageSegment>(type: string): T[] {
@@ -110,7 +106,8 @@ class MessageImpl extends Array<MessageSegment> implements Message {
   }
 }
 
-export const createMessage = (segments: readonly MessageSegment[]): Message => new MessageImpl(segments)
+export const createMessage = (segments: readonly MessageSegment[], rawMessage?: string): Message =>
+  new MessageImpl(segments, rawMessage)
 
 export const segment = {
   text(text: string): MessageSegment {
@@ -142,6 +139,13 @@ export const segment = {
 } as const
 
 export const isMessage = (value: unknown): value is Message => value instanceof MessageImpl
+
+export const atOf = (message: Message): string | undefined => {
+  const at = message.filterByType('at')[0]
+  if (!at) return undefined
+  const raw = at.data?.qq ?? at.data?.target
+  return raw == null ? undefined : String(raw)
+}
 
 export const isSegment = (value: unknown): value is MessageSegment =>
   typeof value === 'object' &&

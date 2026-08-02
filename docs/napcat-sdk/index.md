@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/npm/v/napcat-sdk?color=527dec&label=napcat-sdk&style=flat-square" title="npm" alt="npm" class="inline"/>
 </div>
 
-NapCat SDK 是 mioki 框架的底层通信库，提供了与 [NapCat](https://napneko.github.io/) 服务端通信的能力。它是 mioki 的核心组件，也可以独立使用。
+NapCat SDK 是封装 [NapCat](https://napneko.github.io/) OneBot v11 协议的底层库，你可以使用它来对接 NapCat。
 
 ## 特性 {#features}
 

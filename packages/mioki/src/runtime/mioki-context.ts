@@ -11,6 +11,12 @@ import {
 } from '../utils'
 import * as utilsExports from '../utils'
 import { segment } from '../adapter'
+import {
+  noticeAdmins as noticeAdminsAction,
+  noticeFriends as noticeFriendsAction,
+  noticeGroups as noticeGroupsAction,
+  noticeOwners as noticeOwnersAction,
+} from '../actions'
 import { addService as registerService, servicesRegistry } from '../services'
 
 import type { Adapter } from '../adapter'
@@ -318,6 +324,22 @@ export class MiokiContext {
 
   text(source: HasMessage | Message, options?: { trim?: boolean | 'whole' | 'each' }): string {
     return extractText(source, options)
+  }
+
+  noticeGroups(groupIds: readonly string[], message: MessageInput, options?: import('../actions').NoticeOptions): Promise<void> {
+    return noticeGroupsAction(this.#options.bots.all(), groupIds, message, options)
+  }
+
+  noticeFriends(userIds: readonly string[], message: MessageInput, options?: import('../actions').NoticeOptions): Promise<void> {
+    return noticeFriendsAction(this.#options.bots.all(), userIds, message, options)
+  }
+
+  noticeOwners(message: MessageInput, options?: import('../actions').NoticeOptions): Promise<void> {
+    return noticeOwnersAction(this.#options.bots.all(), this.#options.config.owners, message, options)
+  }
+
+  noticeAdmins(message: MessageInput, options?: import('../actions').NoticeOptions): Promise<void> {
+    return noticeAdminsAction(this.#options.bots.all(), this.#options.config.admins, message, options)
   }
 
   isGroupMsg(event: unknown): boolean {

@@ -4,6 +4,7 @@
 // https://vitepress.dev/guide/custom-theme
 import { h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
+import StoreRegistry from '../components/StoreRegistry.vue'
 
 import './style.css'
 
@@ -16,7 +17,7 @@ export default {
       // https://vitepress.dev/guide/extending-default-theme#layout-slots
     })
   },
-  // enhanceApp({ app, router, siteData }) {
-  //   // ...
-  // },
+  enhanceApp({ app }) {
+    app.component('StoreRegistry', StoreRegistry)
+  },
 } satisfies Theme

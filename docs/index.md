@@ -1,15 +1,15 @@
 ---
 layout: home
 titleTemplate: KiviBot 的精神继任者
-description: 💓 基于 NapCat 的插件式 OneBot 机器人框架，KiviBot 的精神继任者。
+description: 💓 跨平台的插件式机器人框架，KiviBot 的精神继任者。
 head:
   - - meta
     - name: description
-      content: 💓 基于 NapCat 的插件式 OneBot 机器人框架，KiviBot 的精神继任者。
+      content: 💓 跨平台的插件式机器人框架，KiviBot 的精神继任者。
 hero:
   name: mioki
   text: KiviBot 的精神继任者
-  tagline: 基于 NapCat 的插件式 OneBot 机器人框架
+  tagline: 事件驱动的机器人架构 · 开箱即用的适配器支持
   image:
     src: /logo.png
     alt: mioki
@@ -30,7 +30,7 @@ features:
   - icon: 🖥️
     title: 跨平台
     details: 支持 Windows、Linux、macOS、安卓等多种平台，也支持 Bun 等现代运行时
-  - icon: 🔧
-    title: 开发者友好
-    details: 几行代码编写插件，支持热重载、定时任务，完备的 TypeScript 类型定义
+  - icon: 🔌
+    title: 插件可移植
+    details: 适配器可插拔，插件编写一次到处运行
 ---

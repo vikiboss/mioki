@@ -45,7 +45,7 @@ export default definePlugin({
     }
 
     const getMentionedUserId = (event: MessageEvent): string | undefined => {
-      const at = event.message.findByType('at')
+      const at = event.message.find((seg) => seg.type === 'at')
       const qq = at?.data?.qq ?? at?.data?.target
       return qq != null ? String(qq) : undefined
     }

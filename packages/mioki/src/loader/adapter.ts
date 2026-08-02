@@ -1,4 +1,7 @@
 import { pathToFileURL } from 'node:url'
+import { createRequire } from 'node:module'
+import fs from 'node:fs'
+import path from 'node:path'
 import { createJiti, type Jiti } from 'jiti'
 
 import type { AdapterDefinition } from '../adapter'
@@ -11,6 +14,32 @@ const isAdapterDefinition = (value: unknown): value is AdapterDefinition<unknown
   return typeof v.name === 'string' && typeof v.version === 'string' && typeof v.apiVersion === 'number' && typeof v.create === 'function'
 }
 
+const readDependencyNames = (cwd: string): string[] => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8')) as PackageJson
+    return [
+      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.devDependencies ?? {}),
+      ...Object.keys(pkg.optionalDependencies ?? {}),
+    ]
+  } catch {
+    return []
+  }
+}
+
+const resolveAliases = (cwd: string): Record<string, string> => {
+  const require = createRequire(path.join(cwd, 'package.json'))
+  const aliases: Record<string, string> = {}
+  for (const name of readDependencyNames(cwd)) {
+    try {
+      aliases[name] = require.resolve(name)
+    } catch {
+      // 忽略无法解析的依赖
+    }
+  }
+  return aliases
+}
+
 export const createImportContext = (cwd: string): Jiti => {
   return createJiti(cwd, {
     extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.jsx'],
@@ -21,6 +50,7 @@ export const createImportContext = (cwd: string): Jiti => {
     sourceMaps: false,
     interopDefault: true,
     jsx: { importSource: 'react', runtime: 'automatic' },
+    alias: resolveAliases(cwd),
   })
 }
 

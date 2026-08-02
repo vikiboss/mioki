@@ -1,4 +1,4 @@
-import { asMessage, createMessage, MessageSegmentImpl, messageRecall } from 'mioki'
+import { asMessage, atOf, createFriendRef, createGroupRef, createMessage, MessageSegmentImpl, messageRecall } from 'mioki'
 import { segment } from './message'
 
 import type {
@@ -10,6 +10,7 @@ import type {
   MetaEvent,
   NoticeEvent,
   RequestEvent,
+  SenderInfo,
   Bot,
 } from 'mioki'
 
@@ -36,7 +37,7 @@ const buildAttachment = (data: Record<string, unknown>): Attachment | undefined 
   return attachment
 }
 
-export const buildSegments = (raw: unknown[]): Message => {
+export const buildSegments = (raw: unknown[], rawMessage?: string): Message => {
   const segments = raw
     .filter((entry): entry is Record<string, unknown> & { type: string } => isObject(entry) && typeof entry.type === 'string')
     .filter((entry) => entry.type !== 'reply')
@@ -46,7 +47,7 @@ export const buildSegments = (raw: unknown[]): Message => {
       const attachment = buildAttachment(data)
       return new MessageSegmentImpl(entry.type, data, attachment)
     })
-  return createMessage(segments)
+  return createMessage(segments, rawMessage)
 }
 
 const buildRoutes = (adapter: string, ...parts: (string | undefined | null)[]): string[] => {
@@ -97,7 +98,8 @@ export const buildMessageEvent = (params: {
     raw_message?: string
     user_id: number | string
     group_id?: number | string
-    sender: Record<string, unknown> & { user_id: number | string; nickname?: string }
+    group_name?: string
+    sender: Record<string, unknown> & { user_id: number | string; nickname?: string; card?: string; role?: string }
     sub_type?: string
     target_id?: number | string
     quote_id?: string | null
@@ -105,7 +107,7 @@ export const buildMessageEvent = (params: {
   }
 }): MessageEvent => {
   const { adapter, bot, data } = params
-  const message = buildSegments(Array.isArray(data.message) ? data.message : [])
+  const message = buildSegments(Array.isArray(data.message) ? data.message : [], data.raw_message)
   const messageId = String(data.message_id) as string
   const userId = String(data.user_id) as string
   const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
@@ -116,7 +118,17 @@ export const buildMessageEvent = (params: {
   const conversation: ConversationRef | undefined = isGroup && groupId
     ? { type: 'group', id: groupId }
     : { type: 'private', id: userId }
-  const senderInfo = data.sender
+  const sender: SenderInfo | undefined = isObject(data.sender)
+    ? {
+        user_id: String(data.sender.user_id ?? '') as string,
+        nickname: typeof data.sender.nickname === 'string' ? data.sender.nickname : undefined,
+        card: typeof data.sender.card === 'string' ? data.sender.card : undefined,
+        role: typeof data.sender.role === 'string' ? (data.sender.role as SenderInfo['role']) : undefined,
+      }
+    : undefined
+  const quoteId = typeof data.quote_id === 'string' || typeof data.quote_id === 'number'
+    ? String(data.quote_id)
+    : undefined
   return {
     kind: 'message',
     type: 'message',
@@ -135,12 +147,19 @@ export const buildMessageEvent = (params: {
     message_type: data.message_type,
     user_id: userId,
     group_id: groupId,
+    group_name: typeof data.group_name === 'string' ? data.group_name : undefined,
     message_id: messageId,
+    raw_message: message.raw_message,
+    quote_id: quoteId,
+    sender,
+    group: isGroup && groupId ? createGroupRef(bot, groupId, data.group_name) : undefined,
+    friend: !isGroup && userId ? createFriendRef(bot, userId, sender?.nickname) : undefined,
     conversation,
     message,
     is_to_me: typeof data.target_id === 'number' || typeof data.target_id === 'string'
       ? String(data.target_id) === String(bot.bot_id)
       : false,
+    at: atOf(message),
     reply: async (input, options) => {
       const replyOptions = isGroup
         ? ({ type: 'group', group_id: groupId } as const)

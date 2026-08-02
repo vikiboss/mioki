@@ -30,24 +30,71 @@ export const sendMessage = async (bot: Bot, target: MessageTarget, message: Mess
   return await bot.sendMessage(target, message)
 }
 
+const notifyAll = async (
+  bots: readonly Bot[],
+  targets: readonly MessageTarget[],
+  message: MessageInput,
+  options: NoticeOptions = {},
+): Promise<void> => {
+  const delay = options.delay ?? 1000
+  for (const target of targets) {
+    let sent = false
+    for (const bot of bots) {
+      try {
+        await bot.sendMessage(target, message)
+        sent = true
+        break
+      } catch {
+        // 跳过失败的 bot，尝试下一个
+      }
+    }
+    if (!sent) {
+      defaultLogger.warn(`通知目标 ${JSON.stringify(target)} 失败`)
+    }
+    await wait(delay)
+  }
+}
+
+export const noticeGroups = async (
+  bots: readonly Bot[],
+  groupIds: readonly string[],
+  message: MessageInput,
+  options: NoticeOptions = {},
+): Promise<void> => {
+  await notifyAll(
+    bots,
+    groupIds.map((group_id) => ({ type: 'group', group_id })),
+    message,
+    options,
+  )
+}
+
+export const noticeFriends = async (
+  bots: readonly Bot[],
+  userIds: readonly string[],
+  message: MessageInput,
+  options: NoticeOptions = {},
+): Promise<void> => {
+  await notifyAll(
+    bots,
+    userIds.map((user_id) => ({ type: 'private', user_id })),
+    message,
+    options,
+  )
+}
+
 export const noticeOwners = async (
   bots: readonly Bot[],
   owners: readonly string[],
   message: MessageInput,
   options: NoticeOptions = {},
 ): Promise<void> => {
-  const delay = options.delay ?? 1000
-  for (const owner of owners) {
-    const bot = bots[0]
-    if (!bot) return
-    const target = options.target ?? ({ type: 'private', user_id: owner } as MessageTarget)
-    try {
-      await bot.sendMessage(target, message)
-    } catch (err) {
-      defaultLogger.warn(`通知主人 ${owner} 失败`, err)
-    }
-    await wait(delay)
-  }
+  await notifyAll(
+    bots,
+    owners.map((user_id) => options.target ?? ({ type: 'private', user_id } as MessageTarget)),
+    message,
+    options,
+  )
 }
 
 export const noticeAdmins = async (

@@ -8,7 +8,7 @@ const isDev = process.env.NODE_ENV !== 'production'
 export default defineConfig({
   title: 'mioki',
   lang: 'zh-CN',
-  description: '💓 基于 NapCat 的插件式 OneBot 机器人框架，KiviBot 的精神继任者。',
+  description: '💓 跨平台的插件式机器人框架，KiviBot 的精神继任者。',
   lastUpdated: true,
   sitemap: { hostname: 'https://mioki.viki.moe' },
   head: [['link', { rel: 'icon', type: 'image/png', href: '/favicon.ico' }]],
@@ -54,6 +54,9 @@ export default defineConfig({
         text: 'mioki',
         items: [
           { text: '插件进阶', link: '/mioki/plugin' },
+          { text: '编写适配器', link: '/mioki/adapter' },
+          { text: '插件商店', link: '/mioki/plugin-store' },
+          { text: '适配器商店', link: '/mioki/adapter-store' },
           { text: 'mioki API', link: '/mioki/api' },
         ],
       },

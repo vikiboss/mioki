@@ -1,12 +1,21 @@
 import {
   conversationGetHistory,
+  friendDelete,
+  friendGetInfo,
+  friendGetList,
   groupGetInfo,
+  groupGetList,
   groupGetMembers,
+  groupLeave,
+  groupSetName,
+  groupSetPortrait,
   memberBan,
   memberGetInfo,
   memberKick,
   memberSetAdmin,
   memberSetCard,
+  messageGet,
+  messageGetForward,
   messageRecall,
   messageSend,
 } from 'mioki'
@@ -16,10 +25,13 @@ import { buildSegments } from './event'
 import type { ApiCaller } from './gateway'
 import type {
   Capability,
+  ForwardNode,
+  FriendInfo,
   Bot as MiokiBot,
   HistoryMessage,
   MemberInfo,
   GroupInfo,
+  MessageGetResult,
   MessageInput,
   MessageTarget,
   SentMessage,
@@ -68,6 +80,13 @@ export type OneBot = MiokiBot & {
   getFriendList(): Promise<OneBotFriendInfo[]>
   getGroupList(): Promise<OneBotGroupInfo[]>
   recallMessage(messageId: string): Promise<void>
+  getMessage(messageId: string): Promise<MessageGetResult | null>
+  getForwardMessage(messageId: string): Promise<ForwardNode[]>
+  getFriendInfo(userId: string): Promise<FriendInfo | null>
+  deleteFriend(userId: string): Promise<void>
+  leaveGroup(groupId: string, isDismiss?: boolean): Promise<void>
+  setGroupName(groupId: string, name: string): Promise<void>
+  setGroupPortrait(groupId: string, file: string): Promise<void>
   banMember(groupId: string, userId: string, duration: number): Promise<void>
   kickMember(groupId: string, userId: string): Promise<void>
   setMemberCard(groupId: string, userId: string, card: string): Promise<void>
@@ -93,6 +112,8 @@ const toGroupInfo = (raw: Record<string, unknown>): GroupInfo => ({
 const SUPPORTED_CAPABILITIES = [
   messageSend,
   messageRecall,
+  messageGet,
+  messageGetForward,
   memberBan,
   memberKick,
   memberSetCard,
@@ -100,6 +121,13 @@ const SUPPORTED_CAPABILITIES = [
   memberGetInfo,
   groupGetInfo,
   groupGetMembers,
+  groupLeave,
+  groupSetName,
+  groupSetPortrait,
+  groupGetList,
+  friendGetInfo,
+  friendDelete,
+  friendGetList,
   conversationGetHistory,
 ]
 
@@ -152,6 +180,14 @@ export const createOneBot = (params: {
         await bot.recallMessage((input as { message_id: string }).message_id)
         return undefined as O
       }
+      if (capability.token === messageGet.token) {
+        const request = input as { message_id: string }
+        return (await bot.getMessage(request.message_id)) as O
+      }
+      if (capability.token === messageGetForward.token) {
+        const request = input as { message_id: string }
+        return (await bot.getForwardMessage(request.message_id)) as O
+      }
       if (capability.token === memberBan.token) {
         const request = input as { group_id: string; user_id: string; duration: number }
         await bot.banMember(request.group_id, request.user_id, request.duration)
@@ -184,6 +220,36 @@ export const createOneBot = (params: {
         const request = input as { group_id: string }
         return (await bot.getGroupMembers(request.group_id)) as O
       }
+      if (capability.token === groupLeave.token) {
+        const request = input as { group_id: string; is_dismiss?: boolean }
+        await bot.leaveGroup(request.group_id, request.is_dismiss)
+        return undefined as O
+      }
+      if (capability.token === groupSetName.token) {
+        const request = input as { group_id: string; group_name: string }
+        await bot.setGroupName(request.group_id, request.group_name)
+        return undefined as O
+      }
+      if (capability.token === groupSetPortrait.token) {
+        const request = input as { group_id: string; file: string }
+        await bot.setGroupPortrait(request.group_id, request.file)
+        return undefined as O
+      }
+      if (capability.token === groupGetList.token) {
+        return (await bot.getGroupList()) as O
+      }
+      if (capability.token === friendGetList.token) {
+        return (await bot.getFriendList()) as O
+      }
+      if (capability.token === friendGetInfo.token) {
+        const request = input as { user_id: string }
+        return (await bot.getFriendInfo(request.user_id)) as O
+      }
+      if (capability.token === friendDelete.token) {
+        const request = input as { user_id: string }
+        await bot.deleteFriend(request.user_id)
+        return undefined as O
+      }
       if (capability.token === conversationGetHistory.token) {
         const request = input as { target: MessageTarget; before?: string; limit?: number }
         return (await bot.getHistory(request.target, request.before, request.limit)) as O
@@ -210,6 +276,30 @@ export const createOneBot = (params: {
         logger.warn(`pickFriend(${userId}) failed`, err)
         return null
       }
+    },
+    async getFriendInfo(userId: string) {
+      try {
+        const result = await api<Record<string, unknown>>('get_stranger_info', { user_id: userId })
+        return {
+          ...result,
+          user_id: String(result.user_id ?? userId) as string,
+        }
+      } catch (err) {
+        logger.warn(`getFriendInfo(${userId}) failed`, err)
+        return null
+      }
+    },
+    async deleteFriend(userId: string) {
+      await api('delete_friend', { user_id: userId })
+    },
+    async leaveGroup(groupId: string, isDismiss?: boolean) {
+      await api('set_group_leave', { group_id: groupId, is_dismiss: isDismiss ?? false })
+    },
+    async setGroupName(groupId: string, name: string) {
+      await api('set_group_name', { group_id: groupId, group_name: name })
+    },
+    async setGroupPortrait(groupId: string, file: string) {
+      await api('set_group_portrait', { group_id: groupId, file })
     },
     async getCookie(domain: string) {
       const { cookies, bkn } = await api<{ cookies: string; bkn: string }>('get_cookies', { domain })
@@ -249,6 +339,35 @@ export const createOneBot = (params: {
     },
     async recallMessage(messageId: string) {
       await api('delete_msg', { message_id: messageId })
+    },
+    async getMessage(messageId: string) {
+      try {
+        const result = await api<Record<string, unknown>>('get_msg', { message_id: messageId })
+        return {
+          ...result,
+          message_id: messageId,
+          message: buildSegments(
+            Array.isArray(result.message) ? (result.message as unknown[]) : [],
+            typeof result.raw_message === 'string' ? result.raw_message : undefined,
+          ),
+        } as MessageGetResult
+      } catch (err) {
+        logger.warn(`getMessage(${messageId}) failed`, err)
+        return null
+      }
+    },
+    async getForwardMessage(messageId: string) {
+      const result = await api<{ messages?: Record<string, unknown>[] }>('get_forward_msg', { id: messageId })
+      const list = Array.isArray(result.messages) ? result.messages : []
+      return list.map((node) => ({
+        user_id: node.user_id != null ? String(node.user_id) : undefined,
+        nickname: typeof node.nickname === 'string' ? node.nickname : undefined,
+        time: typeof node.time === 'number' ? node.time : undefined,
+        message: buildSegments(
+          Array.isArray(node.message) ? (node.message as unknown[]) : [],
+          typeof node.raw_message === 'string' ? node.raw_message : undefined,
+        ),
+      }))
     },
     async banMember(groupId: string, userId: string, duration: number) {
       await api('set_group_ban', { group_id: groupId, user_id: userId, duration })

@@ -2,7 +2,7 @@
 
 # mioki
 
-💓 一个基于 NapCat 的插件式 OneBot 机器人框架，KiviBot 的精神继任者。
+💓 一个基于跨平台的插件式机器人框架，KiviBot 的精神继任者。
 
 ## 文档
 
@@ -10,9 +10,10 @@
 
 ## 结构
 
-本仓库包含两个包：
+本仓库包含以下包：
 
-- [packages/mioki](./packages/mioki)：框架主体，[查看文档](https://mioki.viki.moe/)
+- [packages/mioki](./packages/mioki)：框架内核，[查看文档](https://mioki.viki.moe/)
+- [packages/mioki-adapter-onebotv11](./packages/mioki-adapter-onebotv11)：OneBot v11 / NapCat 适配器，[查看文档](https://mioki.viki.moe/mioki/adapter)
 - [packages/napcat-sdk](./packages/napcat-sdk)：NapCat SDK，[查看文档](https://mioki.viki.moe/napcat-sdk/)
 
 ## License

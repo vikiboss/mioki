@@ -35,12 +35,6 @@
     },
     "./package.json": "./package.json"
   },
-  "mioki": {
-    "type": "adapter",
-    "name": "onebotv11",
-    "apiVersion": 1,
-    "entry": "./dist/index.mjs"
-  },
   "author": "Viki <hi@viki.moe> (https://github.com/vikiboss)",
   "license": "MIT",
   "peerDependencies": {

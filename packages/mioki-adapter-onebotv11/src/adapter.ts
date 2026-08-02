@@ -2,13 +2,22 @@ import {
   colors,
   conversationGetHistory,
   defineAdapter,
+  friendDelete,
+  friendGetInfo,
+  friendGetList,
   groupGetInfo,
+  groupGetList,
   groupGetMembers,
+  groupLeave,
+  groupSetName,
+  groupSetPortrait,
   memberBan,
   memberGetInfo,
   memberKick,
   memberSetAdmin,
   memberSetCard,
+  messageGet,
+  messageGetForward,
   messageRecall,
   messageSend,
   registerStatusProvider,
@@ -237,6 +246,12 @@ const buildAdapter = (
       ctx.registerCapability(messageRecall, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
         await currentBot.recallMessage(req.message_id)
       }),
+      ctx.registerCapability(messageGet, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getMessage(req.message_id),
+      ),
+      ctx.registerCapability(messageGetForward, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getForwardMessage(req.message_id),
+      ),
       ctx.registerCapability(memberBan, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
         await currentBot.banMember(req.group_id, req.user_id, req.duration)
       }),
@@ -257,6 +272,33 @@ const buildAdapter = (
       ),
       ctx.registerCapability(groupGetMembers, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
         currentBot.getGroupMembers(req.group_id),
+      ),
+      ctx.registerCapability(groupLeave, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.leaveGroup(req.group_id, req.is_dismiss)
+      }),
+      ctx.registerCapability(groupSetName, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.setGroupName(req.group_id, req.group_name)
+      }),
+      ctx.registerCapability(groupSetPortrait, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.setGroupPortrait(req.group_id, req.file)
+      }),
+      ctx.registerCapability(groupGetList, { adapter: adapterName, bot_id: currentBot.bot_id }, async () =>
+        (await currentBot.getGroupList()).map((g) => ({
+          ...g,
+          group_id: String(g.group_id),
+        })),
+      ),
+      ctx.registerCapability(friendGetInfo, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getFriendInfo(req.user_id),
+      ),
+      ctx.registerCapability(friendDelete, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) => {
+        await currentBot.deleteFriend(req.user_id)
+      }),
+      ctx.registerCapability(friendGetList, { adapter: adapterName, bot_id: currentBot.bot_id }, async () =>
+        (await currentBot.getFriendList()).map((f) => ({
+          ...f,
+          user_id: String(f.user_id),
+        })),
       ),
       ctx.registerCapability(
         conversationGetHistory,

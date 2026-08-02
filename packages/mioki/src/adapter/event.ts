@@ -35,15 +35,29 @@ export interface BotEventBase extends EventBase {
   readonly bot: import('./bot').Bot
 }
 
+export interface SenderInfo {
+  readonly user_id?: string
+  readonly nickname?: string
+  readonly card?: string
+  readonly role?: 'owner' | 'admin' | 'member' | (string & {})
+}
+
 export interface MessageEvent extends BotEventBase {
   readonly kind: 'message'
   readonly message_type: 'private' | 'group' | 'channel' | 'thread' | 'direct' | (string & {})
   readonly user_id?: string
   readonly group_id?: string
+  readonly group_name?: string
   readonly message_id?: string
+  readonly raw_message?: string
+  readonly quote_id?: string
+  readonly sender?: SenderInfo
+  readonly group?: import('../capabilities/group').Group
+  readonly friend?: import('../capabilities/friend').Friend
   readonly conversation?: ConversationRef
   readonly message: Message
   readonly is_to_me?: boolean
+  readonly at?: string
   reply(message: MessageInput, options?: boolean | ReplyOptions): Promise<SentMessage>
   recall(): Promise<void>
 }
