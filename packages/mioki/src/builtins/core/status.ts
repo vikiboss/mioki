@@ -89,7 +89,7 @@ export interface MiokiCoreServiceContrib {
 const statusProviders = new Map<string, StatusProvider>()
 const statusFormatters = new Set<(status: MiokiStatus) => Promise<string> | string>()
 
-export const registerStatusProvider = (adapter: string, provider: StatusProvider): () => void => {
+export const registerStatusProvider = (adapter: string, provider: StatusProvider): (() => void) => {
   statusProviders.set(adapter, provider)
   return () => {
     statusProviders.delete(adapter)
@@ -103,12 +103,7 @@ export const setStatusFormatter = (formatter: (status: MiokiStatus) => string | 
 
 const getSystemInfo = (): { name: string; version: string; arch: string } => {
   const osType = os.type()
-  const osArch = os.arch()
-  const arch = ArchMap[osArch] ?? osArch
-  const isUnix = ['Linux', 'Darwin'].includes(osType)
-  if (isUnix) {
-    return { name: SystemMap[osType] ?? osType, version: '-', arch }
-  }
+  const arch = ArchMap[os.type()] ?? os.arch()
   return { name: SystemMap[osType] ?? osType, version: '-', arch }
 }
 
@@ -164,9 +159,7 @@ export interface BuildStatusOptions {
 export const buildMiokiStatus = async (options: BuildStatusOptions): Promise<MiokiStatus> => {
   const sysInfo = options.systemInfoProvider ? await options.systemInfoProvider() : null
   const defaultSystem = getSystemInfo()
-  const system = sysInfo
-    ? { name: sysInfo.distro, version: sysInfo.release, arch: defaultSystem.arch }
-    : defaultSystem
+  const system = sysInfo ? { name: sysInfo.distro, version: sysInfo.release, arch: defaultSystem.arch } : defaultSystem
   const cpu = (() => {
     const cpus = os.cpus()
     return { name: cpus[0]?.model ?? '[未知CPU]', count: cpus.length }
@@ -234,7 +227,9 @@ export const formatMiokiStatus = async (status: MiokiStatus): Promise<string> =>
   if (firstFormatter) return await firstFormatter(status)
 
   const diskValid = disk.total > 0 && disk.free >= 0
-  const diskDesc = diskValid ? `${disk.percent}%-${filesize(disk.used, { round: 1 })}/${filesize(disk.total, { round: 1 })}` : ''
+  const diskDesc = diskValid
+    ? `${disk.percent}%-${filesize(disk.used, { round: 1 })}/${filesize(disk.total, { round: 1 })}`
+    : ''
 
   const botLines = bots
     .map((bot) => {

@@ -1,4 +1,5 @@
 import {
+  bindCapabilities,
   colors,
   conversationGetHistory,
   defineAdapter,
@@ -27,20 +28,10 @@ import { createOneBot, type OneBot, type OneBotData } from './bot'
 import { OneBotWebSocketGateway } from './gateway'
 import { AdapterEventDeduplicator } from './dedup'
 import { createOneBotStatusProvider } from './status'
-import {
-  buildMessageEvent,
-  buildMetaEvent,
-  buildNoticeEvent,
-  buildRequestEvent,
-  decodeWsMessage,
-} from './event'
+import { buildMessageEvent, buildMetaEvent, buildNoticeEvent, buildRequestEvent, decodeWsMessage } from './event'
 import { stringifyMessage } from './message'
 
-import type {
-  Adapter,
-  AdapterContext,
-  AdapterFactoryOptions,
-} from 'mioki'
+import type { Adapter, AdapterContext, AdapterFactoryOptions } from 'mioki'
 import type { OneBotAdapterConfig, OneBotInstanceConfig } from './config'
 import type { AdapterStatus, Capability, Event, Logger, Bot, MessageEvent } from 'mioki'
 import type { WebSocketConnection } from 'mioki'
@@ -90,9 +81,10 @@ const buildMaskedUrl = (config: OneBotInstanceConfig): string => {
 
 const logMessage = (logger: Logger, data: Record<string, unknown>, event: MessageEvent): void => {
   const msg = stringifyMessage(event.message)
-  const sender = isObject(data.sender) && typeof data.sender.nickname === 'string'
-    ? `${data.sender.nickname}(${event.user_id})`
-    : `(${event.user_id})`
+  const sender =
+    isObject(data.sender) && typeof data.sender.nickname === 'string'
+      ? `${data.sender.nickname}(${event.user_id})`
+      : `(${event.user_id})`
   if (event.message_type === 'group') {
     const groupName = typeof data.group_name === 'string' ? data.group_name : ''
     logger.info(`[群:${groupName}(${event.group_id})] ${sender}: ${msg}`)
@@ -111,17 +103,20 @@ const logMessageSent = (logger: Logger, data: Record<string, unknown>, event: Me
   }
 }
 
-const buildNoticeFromOneBot = (data: Record<string, unknown>): {
+const buildNoticeFromOneBot = (
+  data: Record<string, unknown>,
+): {
   notice_type: string
   sub_type?: string
   action_type?: string
 } => {
   if (data.notice_type === 'notify') {
-    const mapped = data.sub_type === 'poke'
-      ? data.group_id
-        ? { notice_type: 'group', sub_type: 'poke' }
-        : { notice_type: 'friend', sub_type: 'poke' }
-      : ONEBOT_NOTICE_NOTIFY_MAP[(data.sub_type as string) ?? '']
+    const mapped =
+      data.sub_type === 'poke'
+        ? data.group_id
+          ? { notice_type: 'group', sub_type: 'poke' }
+          : { notice_type: 'friend', sub_type: 'poke' }
+        : ONEBOT_NOTICE_NOTIFY_MAP[(data.sub_type as string) ?? '']
     if (mapped) {
       return {
         notice_type: mapped.notice_type,
@@ -175,9 +170,10 @@ const buildAdapter = (
       adapter: adapterName,
       bot_id: bot.bot_id,
       event_type: typeof data.post_type === 'string' ? data.post_type : 'unknown',
-      message_id: typeof data.message_id === 'number' || typeof data.message_id === 'string'
-        ? String(data.message_id)
-        : undefined,
+      message_id:
+        typeof data.message_id === 'number' || typeof data.message_id === 'string'
+          ? String(data.message_id)
+          : undefined,
       timestamp: typeof data.time === 'number' ? data.time * 1000 : undefined,
     }
     if (dedup.isDuplicate(identity)) return
@@ -211,28 +207,34 @@ const buildAdapter = (
         sub_type: mapped.sub_type ?? data.sub_type,
         action_type: mapped.action_type ?? data.action_type,
       }
-      await adapterContext.dispatch(buildNoticeEvent({
-        adapter: adapterName,
-        bot,
-        data: enriched as Parameters<typeof buildNoticeEvent>[0]['data'],
-      }))
+      await adapterContext.dispatch(
+        buildNoticeEvent({
+          adapter: adapterName,
+          bot,
+          data: enriched as Parameters<typeof buildNoticeEvent>[0]['data'],
+        }),
+      )
       return
     }
     if (data.post_type === 'request') {
-      await adapterContext.dispatch(buildRequestEvent({
-        adapter: adapterName,
-        bot,
-        api: gateway!.call,
-        data: data as Parameters<typeof buildRequestEvent>[0]['data'],
-      }))
+      await adapterContext.dispatch(
+        buildRequestEvent({
+          adapter: adapterName,
+          bot,
+          api: gateway!.call,
+          data: data as Parameters<typeof buildRequestEvent>[0]['data'],
+        }),
+      )
       return
     }
     if (data.post_type === 'meta_event') {
-      await adapterContext.dispatch(buildMetaEvent({
-        adapter: adapterName,
-        bot,
-        data: data as Parameters<typeof buildMetaEvent>[0]['data'],
-      }))
+      await adapterContext.dispatch(
+        buildMetaEvent({
+          adapter: adapterName,
+          bot,
+          data: data as Parameters<typeof buildMetaEvent>[0]['data'],
+        }),
+      )
       return
     }
   }
@@ -300,10 +302,8 @@ const buildAdapter = (
           user_id: String(f.user_id),
         })),
       ),
-      ctx.registerCapability(
-        conversationGetHistory,
-        { adapter: adapterName, bot_id: currentBot.bot_id },
-        async (req) => currentBot.getHistory(req.target, req.before, req.limit),
+      ctx.registerCapability(conversationGetHistory, { adapter: adapterName, bot_id: currentBot.bot_id }, async (req) =>
+        currentBot.getHistory(req.target, req.before, req.limit),
       ),
     ]
   }
@@ -324,7 +324,10 @@ const buildAdapter = (
     botData.nickname = loginInfo.nickname
     botData.connected_at = Date.now()
     if (!bot) {
-      bot = createOneBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ })
+      bot = bindCapabilities(
+        createOneBot({ data: botData, api: gateway.call, logger, onSend: () => sendCount++ }),
+        adapterContext.getCapabilityRegistry(),
+      )
       registerBotCapabilities(adapterContext, bot)
     }
     if (!botData.online) {

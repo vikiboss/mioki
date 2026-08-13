@@ -111,7 +111,7 @@ export class MiokiRuntime {
   }
 
   getAdapter<T extends Adapter = Adapter>(name: string): T | undefined {
-    const state = this.#adapterStates.get(name as string)
+    const state = this.#adapterStates.get(name)
     return state?.instance as T | undefined
   }
 
@@ -251,7 +251,9 @@ export class MiokiRuntime {
         try {
           await fn()
         } catch (err) {
-          this.#logger.warn(`Plugin "${plugin.name}" cleanup error: ${err instanceof Error ? err.message : String(err)}`)
+          this.#logger.warn(
+            `Plugin "${plugin.name}" cleanup error: ${err instanceof Error ? err.message : String(err)}`,
+          )
         }
       }
     }
@@ -259,9 +261,7 @@ export class MiokiRuntime {
   }
 
   async #setupBuiltinPlugins(): Promise<void> {
-    this.#logger.info(
-      `>>> 加载内置插件: ${this.#builtinPlugins.map((p) => colors.cyan(p.name)).join(', ')}`,
-    )
+    this.#logger.info(`>>> 加载内置插件: ${this.#builtinPlugins.map((p) => colors.cyan(p.name)).join(', ')}`)
     for (const plugin of this.#builtinPlugins) {
       try {
         await this.#loadPlugin(plugin, 'builtin')
@@ -386,9 +386,7 @@ export class MiokiRuntime {
     const end = hrtime.bigint()
     const cost = Math.round(Number(end - startTime)) / 1_000_000
     const enabledCount = this.#enabledPlugins.size
-    this.#logger.info(
-      `成功加载了 ${colors.green(enabledCount)} 个插件，总耗时 ${colors.green(cost.toFixed(2))} 毫秒`,
-    )
+    this.#logger.info(`成功加载了 ${colors.green(enabledCount)} 个插件，总耗时 ${colors.green(cost.toFixed(2))} 毫秒`)
   }
 
   async #startAdapter(name: string): Promise<Adapter> {
@@ -402,7 +400,9 @@ export class MiokiRuntime {
       try {
         config = definition.validateConfig(rawConfig)
       } catch (err) {
-        throw new Error(`Adapter "${name}" config validation failed: ${err instanceof Error ? err.message : String(err)}`)
+        throw new Error(
+          `Adapter "${name}" config validation failed: ${err instanceof Error ? err.message : String(err)}`,
+        )
       }
     }
     const state: RuntimeAdapterState = {
@@ -542,9 +542,7 @@ export class MiokiRuntime {
       try {
         await entry.cleanup?.()
       } catch (err) {
-        this.#logger.warn(
-          `Plugin cleanup failed: ${err instanceof Error ? err.message : String(err)}`,
-        )
+        this.#logger.warn(`Plugin cleanup failed: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
     this.#enabledPlugins.clear()

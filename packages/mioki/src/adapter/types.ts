@@ -1,4 +1,5 @@
 import type { Capability } from './capability'
+import type { CapabilityRegistry } from './registry'
 import type { Driver } from '../driver'
 import type { Event } from './event'
 
@@ -30,6 +31,7 @@ export interface AdapterContext {
     target: CapabilityTarget,
     handler: (input: I) => Promise<O>,
   ): () => void
+  getCapabilityRegistry(): CapabilityRegistry
   registerGateway(gateway: AdapterGateway): () => void
   registerResource(resource: AdapterResource): () => void
   dispatch(event: Event): Promise<void>

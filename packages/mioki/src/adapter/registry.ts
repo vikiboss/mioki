@@ -57,6 +57,7 @@ export class CapabilityRegistry {
     const handler = this.#handlers.find(
       (h) =>
         h.capability.token === capability.token &&
+        h.capability.version === capability.version &&
         h.target.adapter === target.adapter &&
         (h.target.bot_id ?? null) === (target.bot_id ?? null) &&
         (h.target.resource_id ?? null) === (target.resource_id ?? null),

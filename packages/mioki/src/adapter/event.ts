@@ -106,8 +106,6 @@ export const isAdapterEvent = (e: Event): e is AdapterEvent => e.kind === 'adapt
 export const isBotEvent = (e: Event): e is BotEvent =>
   e.kind === 'message' || e.kind === 'notice' || e.kind === 'request' || e.kind === 'meta_event'
 
-export const routesFor = (event: Event): readonly string[] => event.routes
-
 export interface EventFactoryOptions<T extends MessageEvent | NoticeEvent | RequestEvent | MetaEvent | AdapterEvent> {
   readonly routes: readonly string[]
   readonly identity: EventIdentity
@@ -117,15 +115,18 @@ export interface EventFactoryOptions<T extends MessageEvent | NoticeEvent | Requ
   readonly raw?: unknown
 }
 
-export const buildRoutes = (segments: readonly string[]): string[] => {
+export const buildRoutes = (adapter: string, ...parts: (string | undefined | null)[]): string[] => {
+  const cleaned = parts.filter((p): p is string => typeof p === 'string' && p.length > 0)
   const routes: string[] = []
-  for (let length = segments.length; length > 0; length--) {
-    const route = segments.slice(0, length).join('.')
-    if (route) routes.push(route)
+  const platformParts = [adapter, ...cleaned]
+  for (let length = platformParts.length; length > 0; length--) {
+    const [head, ...rest] = platformParts.slice(0, length)
+    routes.push(rest.length > 0 ? `${head}:${rest.join('.')}` : head)
   }
-  return routes
+  for (let length = cleaned.length; length > 0; length--) {
+    routes.push(cleaned.slice(0, length).join('.'))
+  }
+  return Array.from(new Set(routes))
 }
-
-export const dedupeRoutes = (routes: readonly string[]): string[] => Array.from(new Set(routes))
 
 export type { Attachment, ConversationRef, Message, MessageInput, MessageTarget, ReplyOptions, SentMessage }

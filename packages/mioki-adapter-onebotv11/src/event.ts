@@ -1,4 +1,13 @@
-import { asMessage, atOf, createFriendRef, createGroupRef, createMessage, MessageSegmentImpl, messageRecall } from 'mioki'
+import {
+  asMessage,
+  atOf,
+  buildRoutes,
+  createFriendRef,
+  createGroupRef,
+  createMessage,
+  MessageSegmentImpl,
+  messageRecall,
+} from 'mioki'
 import { segment } from './message'
 
 import type {
@@ -39,7 +48,9 @@ const buildAttachment = (data: Record<string, unknown>): Attachment | undefined 
 
 export const buildSegments = (raw: unknown[], rawMessage?: string): Message => {
   const segments = raw
-    .filter((entry): entry is Record<string, unknown> & { type: string } => isObject(entry) && typeof entry.type === 'string')
+    .filter(
+      (entry): entry is Record<string, unknown> & { type: string } => isObject(entry) && typeof entry.type === 'string',
+    )
     .filter((entry) => entry.type !== 'reply')
     .map((entry) => {
       const rawData = isObject(entry.data) ? (entry.data as Record<string, unknown>) : {}
@@ -48,20 +59,6 @@ export const buildSegments = (raw: unknown[], rawMessage?: string): Message => {
       return new MessageSegmentImpl(entry.type, data, attachment)
     })
   return createMessage(segments, rawMessage)
-}
-
-const buildRoutes = (adapter: string, ...parts: (string | undefined | null)[]): string[] => {
-  const cleaned = parts.filter((p): p is string => typeof p === 'string' && p.length > 0)
-  const routes: string[] = []
-  const platformParts = [adapter, ...cleaned]
-  for (let length = platformParts.length; length > 0; length--) {
-    const [head, ...rest] = platformParts.slice(0, length)
-    routes.push(rest.length > 0 ? `${head}:${rest.join('.')}` : head)
-  }
-  for (let length = cleaned.length; length > 0; length--) {
-    routes.push(cleaned.slice(0, length).join('.'))
-  }
-  return Array.from(new Set(routes))
 }
 
 export interface OneBotEventLike {
@@ -80,9 +77,10 @@ const buildIdentity = (params: {
   adapter: params.adapter,
   bot_id: params.bot_id,
   event_type: params.event_type,
-  message_id: typeof params.message_id === 'string' || typeof params.message_id === 'number'
-    ? String(params.message_id)
-    : undefined,
+  message_id:
+    typeof params.message_id === 'string' || typeof params.message_id === 'number'
+      ? String(params.message_id)
+      : undefined,
   timestamp: params.timestamp,
   native_event_id: params.native_event_id,
 })
@@ -110,14 +108,14 @@ export const buildMessageEvent = (params: {
   const message = buildSegments(Array.isArray(data.message) ? data.message : [], data.raw_message)
   const messageId = String(data.message_id) as string
   const userId = String(data.user_id) as string
-  const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
-    ? (String(data.group_id) as string)
-    : undefined
+  const groupId =
+    typeof data.group_id === 'number' || typeof data.group_id === 'string'
+      ? (String(data.group_id) as string)
+      : undefined
   const isGroup = data.message_type === 'group'
   const routes = buildRoutes(adapter, 'message', data.message_type, data.sub_type)
-  const conversation: ConversationRef | undefined = isGroup && groupId
-    ? { type: 'group', id: groupId }
-    : { type: 'private', id: userId }
+  const conversation: ConversationRef | undefined =
+    isGroup && groupId ? { type: 'group', id: groupId } : { type: 'private', id: userId }
   const sender: SenderInfo | undefined = isObject(data.sender)
     ? {
         user_id: String(data.sender.user_id ?? '') as string,
@@ -126,9 +124,8 @@ export const buildMessageEvent = (params: {
         role: typeof data.sender.role === 'string' ? (data.sender.role as SenderInfo['role']) : undefined,
       }
     : undefined
-  const quoteId = typeof data.quote_id === 'string' || typeof data.quote_id === 'number'
-    ? String(data.quote_id)
-    : undefined
+  const quoteId =
+    typeof data.quote_id === 'string' || typeof data.quote_id === 'number' ? String(data.quote_id) : undefined
   return {
     kind: 'message',
     type: 'message',
@@ -156,9 +153,10 @@ export const buildMessageEvent = (params: {
     friend: !isGroup && userId ? createFriendRef(bot, userId, sender?.nickname) : undefined,
     conversation,
     message,
-    is_to_me: typeof data.target_id === 'number' || typeof data.target_id === 'string'
-      ? String(data.target_id) === String(bot.bot_id)
-      : false,
+    is_to_me:
+      typeof data.target_id === 'number' || typeof data.target_id === 'string'
+        ? String(data.target_id) === String(bot.bot_id)
+        : false,
     at: atOf(message),
     reply: async (input, options) => {
       const replyOptions = isGroup
@@ -195,15 +193,16 @@ export const buildNoticeEvent = (params: {
   }
 }): NoticeEvent => {
   const { adapter, bot, data } = params
-  const userId = typeof data.user_id === 'number' || typeof data.user_id === 'string'
-    ? (String(data.user_id) as string)
-    : undefined
-  const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
-    ? (String(data.group_id) as string)
-    : undefined
-  const operatorId = typeof data.operator_id === 'number' || typeof data.operator_id === 'string'
-    ? (String(data.operator_id) as string)
-    : undefined
+  const userId =
+    typeof data.user_id === 'number' || typeof data.user_id === 'string' ? (String(data.user_id) as string) : undefined
+  const groupId =
+    typeof data.group_id === 'number' || typeof data.group_id === 'string'
+      ? (String(data.group_id) as string)
+      : undefined
+  const operatorId =
+    typeof data.operator_id === 'number' || typeof data.operator_id === 'string'
+      ? (String(data.operator_id) as string)
+      : undefined
   const routes = buildRoutes(adapter, 'notice', data.notice_type, data.sub_type)
   return {
     kind: 'notice',
@@ -244,9 +243,10 @@ export const buildRequestEvent = (params: {
 }): RequestEvent => {
   const { adapter, bot, api, data } = params
   const userId = String(data.user_id) as string
-  const groupId = typeof data.group_id === 'number' || typeof data.group_id === 'string'
-    ? (String(data.group_id) as string)
-    : undefined
+  const groupId =
+    typeof data.group_id === 'number' || typeof data.group_id === 'string'
+      ? (String(data.group_id) as string)
+      : undefined
   const flag = String(data.flag)
   const routes = buildRoutes(adapter, 'request', data.request_type, data.sub_type)
   const action = data.request_type === 'friend' ? 'set_friend_add_request' : 'set_group_add_request'

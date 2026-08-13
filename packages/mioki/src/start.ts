@@ -60,16 +60,15 @@ export const start = async (options: StartOptions = {}): Promise<{ stop: (reason
     logger.info(`成功连接 ${bots.length} 个实例: ${bots.map((b) => b.bot_id).join(', ')}`)
   }
   logger.info(colors.dim('='.repeat(40)))
-  logger.info(`mioki v${version} 启动完成，向机器人发送「${colors.magentaBright(`${botConfig.prefix}帮助`)}」查看消息指令`,)
+  logger.info(
+    `mioki v${version} 启动完成，向机器人发送「${colors.magentaBright(`${botConfig.prefix}帮助`)}」查看消息指令`,
+  )
 
   if (botConfig.online_push && botConfig.owners[0]) {
     const bot = runtime.bots[0]
     if (bot) {
       try {
-        await bot.sendMessage(
-          { type: 'private', user_id: botConfig.owners[0] } as never,
-          `✅ mioki v${version} 已就绪`,
-        )
+        await bot.sendMessage({ type: 'private', user_id: botConfig.owners[0] }, `✅ mioki v${version} 已就绪`)
       } catch (err) {
         logger.warn('发送就绪通知失败', err)
       }

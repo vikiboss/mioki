@@ -64,11 +64,12 @@ const createHttpClient = (state: DriverState): HttpClient => {
       const signal = options.signal ?? state.rootController.signal
       const timeout = options.timeout ?? state.requestTimeout
       const controller = new AbortController()
-      const timer = timeout > 0
-        ? setTimeout(() => {
-            controller.abort(new Error(`HttpRequest timeout after ${timeout}ms`))
-          }, timeout)
-        : null
+      const timer =
+        timeout > 0
+          ? setTimeout(() => {
+              controller.abort(new Error(`HttpRequest timeout after ${timeout}ms`))
+            }, timeout)
+          : null
       const compositeSignal = AbortSignal.any([signal, controller.signal])
       try {
         const response = await fetch(options.url, {
@@ -77,19 +78,12 @@ const createHttpClient = (state: DriverState): HttpClient => {
           body,
           signal: compositeSignal,
         })
-        if (!response.ok && response.status !== 0) {
-          // We allow the caller to inspect status; only throw if they want a non-2xx shortcut.
-          return await buildResponse(response)
-        }
         return await buildResponse(response)
       } catch (err) {
         if (controller.signal.aborted) {
           throw new HttpRequestError(`Request aborted or timed out: ${options.url}`, 0)
         }
-        throw new HttpRequestError(
-          err instanceof Error ? err.message : String(err),
-          0,
-        )
+        throw new HttpRequestError(err instanceof Error ? err.message : String(err), 0)
       } finally {
         if (timer) clearTimeout(timer)
       }
@@ -236,11 +230,15 @@ const createWebSocketClient = (state: DriverState): WebSocketClient => {
         await new Promise<void>((resolve, reject) => {
           rejectConnect = reject
           socket.addEventListener('open', () => resolve(), { once: true })
-          socket.addEventListener('error', (event) => {
-            if (externalAbort) return
-            const err = event instanceof ErrorEvent ? new Error(event.message) : new Error('WebSocket connect failed')
-            reject(err)
-          }, { once: true })
+          socket.addEventListener(
+            'error',
+            (event) => {
+              if (externalAbort) return
+              const err = event instanceof ErrorEvent ? new Error(event.message) : new Error('WebSocket connect failed')
+              reject(err)
+            },
+            { once: true },
+          )
         })
       } catch (err) {
         try {

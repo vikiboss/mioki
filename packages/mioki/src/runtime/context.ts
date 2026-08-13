@@ -1,12 +1,6 @@
 import type { Bot, BotContext } from '../adapter'
 import type { Capability } from '../adapter'
-import type {
-  AdapterContext,
-  AdapterGateway,
-  AdapterResource,
-  BotLifecycleEvent,
-  CapabilityTarget,
-} from '../adapter'
+import type { AdapterContext, AdapterGateway, AdapterResource, BotLifecycleEvent, CapabilityTarget } from '../adapter'
 import type { Driver } from '../driver'
 import type { Event } from '../adapter'
 import type { CapabilityRegistry } from '../adapter'
@@ -78,9 +72,13 @@ export class AdapterContextImpl implements AdapterContext {
   ): () => void {
     const finalTarget: CapabilityTarget = {
       ...target,
-      adapter: target.adapter === ('' as string) ? this.#state.definition.name : target.adapter,
+      adapter: target.adapter ?? this.#state.definition.name,
     }
     return this.#capabilities.register(capability, finalTarget, handler)
+  }
+
+  getCapabilityRegistry(): CapabilityRegistry {
+    return this.#capabilities
   }
 
   registerGateway(gateway: AdapterGateway): () => void {

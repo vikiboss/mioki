@@ -1,30 +1,8 @@
-import {
-  conversationGetHistory,
-  friendDelete,
-  friendGetInfo,
-  friendGetList,
-  groupGetInfo,
-  groupGetList,
-  groupGetMembers,
-  groupLeave,
-  groupSetName,
-  groupSetPortrait,
-  memberBan,
-  memberGetInfo,
-  memberKick,
-  memberSetAdmin,
-  memberSetCard,
-  messageGet,
-  messageGetForward,
-  messageRecall,
-  messageSend,
-} from 'mioki'
 import { buildPayload, sentFromOneBot } from './message'
 import { buildSegments } from './event'
 
 import type { ApiCaller } from './gateway'
 import type {
-  Capability,
   ForwardNode,
   FriendInfo,
   Bot as MiokiBot,
@@ -99,6 +77,8 @@ export type OneBot = MiokiBot & {
   as<T extends object = Record<string, unknown>>(): T
 }
 
+export type OneBotBase = Omit<OneBot, 'supports' | 'invoke'>
+
 const toMemberInfo = (raw: Record<string, unknown>): MemberInfo => ({
   ...raw,
   user_id: String(raw.user_id ?? '') as string,
@@ -109,36 +89,14 @@ const toGroupInfo = (raw: Record<string, unknown>): GroupInfo => ({
   group_id: String(raw.group_id ?? '') as string,
 })
 
-const SUPPORTED_CAPABILITIES = [
-  messageSend,
-  messageRecall,
-  messageGet,
-  messageGetForward,
-  memberBan,
-  memberKick,
-  memberSetCard,
-  memberSetAdmin,
-  memberGetInfo,
-  groupGetInfo,
-  groupGetMembers,
-  groupLeave,
-  groupSetName,
-  groupSetPortrait,
-  groupGetList,
-  friendGetInfo,
-  friendDelete,
-  friendGetList,
-  conversationGetHistory,
-]
-
 export const createOneBot = (params: {
   data: OneBotData
   api: ApiCaller
   logger: import('mioki').Logger
   onSend?: () => void
-}): OneBot => {
+}): OneBotBase => {
   const { data, api, logger, onSend } = params
-  const bot: OneBot = {
+  const bot: OneBotBase = {
     get bot_id(): string {
       return data.bot_id
     },
@@ -167,94 +125,6 @@ export const createOneBot = (params: {
         return sentFromOneBot(sent as { message_id?: number | string })
       }
       throw new Error(`Unsupported target type: ${target.type}`)
-    },
-    supports<I, O>(capability: Capability<I, O>): boolean {
-      return SUPPORTED_CAPABILITIES.some((cap) => cap.token === capability.token)
-    },
-    async invoke<I, O>(capability: Capability<I, O>, input: I): Promise<O> {
-      if (capability.token === messageSend.token) {
-        const request = input as { target: MessageTarget; message: MessageInput }
-        return (await bot.sendMessage(request.target, request.message)) as O
-      }
-      if (capability.token === messageRecall.token) {
-        await bot.recallMessage((input as { message_id: string }).message_id)
-        return undefined as O
-      }
-      if (capability.token === messageGet.token) {
-        const request = input as { message_id: string }
-        return (await bot.getMessage(request.message_id)) as O
-      }
-      if (capability.token === messageGetForward.token) {
-        const request = input as { message_id: string }
-        return (await bot.getForwardMessage(request.message_id)) as O
-      }
-      if (capability.token === memberBan.token) {
-        const request = input as { group_id: string; user_id: string; duration: number }
-        await bot.banMember(request.group_id, request.user_id, request.duration)
-        return undefined as O
-      }
-      if (capability.token === memberKick.token) {
-        const request = input as { group_id: string; user_id: string }
-        await bot.kickMember(request.group_id, request.user_id)
-        return undefined as O
-      }
-      if (capability.token === memberSetCard.token) {
-        const request = input as { group_id: string; user_id: string; card: string }
-        await bot.setMemberCard(request.group_id, request.user_id, request.card)
-        return undefined as O
-      }
-      if (capability.token === memberSetAdmin.token) {
-        const request = input as { group_id: string; user_id: string; enable: boolean }
-        await bot.setMemberAdmin(request.group_id, request.user_id, request.enable)
-        return undefined as O
-      }
-      if (capability.token === memberGetInfo.token) {
-        const request = input as { group_id: string; user_id: string }
-        return (await bot.getMemberInfo(request.group_id, request.user_id)) as O
-      }
-      if (capability.token === groupGetInfo.token) {
-        const request = input as { group_id: string }
-        return (await bot.getGroupInfo(request.group_id)) as O
-      }
-      if (capability.token === groupGetMembers.token) {
-        const request = input as { group_id: string }
-        return (await bot.getGroupMembers(request.group_id)) as O
-      }
-      if (capability.token === groupLeave.token) {
-        const request = input as { group_id: string; is_dismiss?: boolean }
-        await bot.leaveGroup(request.group_id, request.is_dismiss)
-        return undefined as O
-      }
-      if (capability.token === groupSetName.token) {
-        const request = input as { group_id: string; group_name: string }
-        await bot.setGroupName(request.group_id, request.group_name)
-        return undefined as O
-      }
-      if (capability.token === groupSetPortrait.token) {
-        const request = input as { group_id: string; file: string }
-        await bot.setGroupPortrait(request.group_id, request.file)
-        return undefined as O
-      }
-      if (capability.token === groupGetList.token) {
-        return (await bot.getGroupList()) as O
-      }
-      if (capability.token === friendGetList.token) {
-        return (await bot.getFriendList()) as O
-      }
-      if (capability.token === friendGetInfo.token) {
-        const request = input as { user_id: string }
-        return (await bot.getFriendInfo(request.user_id)) as O
-      }
-      if (capability.token === friendDelete.token) {
-        const request = input as { user_id: string }
-        await bot.deleteFriend(request.user_id)
-        return undefined as O
-      }
-      if (capability.token === conversationGetHistory.token) {
-        const request = input as { target: MessageTarget; before?: string; limit?: number }
-        return (await bot.getHistory(request.target, request.before, request.limit)) as O
-      }
-      throw new Error(`Unsupported capability: ${capability.name}`)
     },
     async sendApi<T = unknown>(action: string, actionParams: Record<string, unknown> = {}): Promise<T> {
       return (await api(action, actionParams)) as T
@@ -423,9 +293,7 @@ export const createOneBot = (params: {
       } else {
         throw new Error(`Unsupported target type: ${target.type}`)
       }
-      const list = Array.isArray(raw)
-        ? raw
-        : (raw as { messages?: unknown[] }).messages ?? []
+      const list = Array.isArray(raw) ? raw : ((raw as { messages?: unknown[] }).messages ?? [])
       return (list as Record<string, unknown>[]).map((entry) => ({
         message_id: String(entry.message_id ?? '') as string,
         time: typeof entry.time === 'number' ? (entry.time as number) * 1000 : undefined,
