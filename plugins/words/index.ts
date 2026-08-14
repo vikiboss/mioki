@@ -1,11 +1,13 @@
 import { definePlugin } from 'mioki'
+import {segment} from 'mioki-adapter-onebotv11'
+
 
 export default definePlugin({
   name: 'words',
   version: '1.0.0',
   async setup(ctx) {
-    ctx.handle('message', async (event) => {
-      ctx.match(
+    ctx.handle('onebotv11:message', async (event) => {
+      await ctx.match(
         event,
         {
           hello: 'world',
@@ -13,22 +15,22 @@ export default definePlugin({
           现在几点: () => new Date().toLocaleTimeString('zh-CN'),
 
           赞我: async () => {
-            await ctx.bot.sendLike(event.user_id, 10)
-            return ['已为您点赞 10 次', ctx.segment.face(66)]
+            await event.bot.sendLike(event.user_id!, 10)
+            return ['已为您点赞 10 次', segment.face(66)]
           },
 
-          '我要头衔*': async (matches, event) => {
+          '我要头衔*': async (matches) => {
             if (event.message_type !== 'group') return
-
-            const title = matches[0].slice(4)
-            await event.group.setTitle(event.user_id, title)
-            return `头衔已设置：${title}`
+            await event.bot.setMemberCard(event.group_id!, event.user_id!, matches[0].slice(4))
+            return `头衔已设置：${matches[0].slice(4)}`
           },
 
           '查信息*': async (matches) => {
             const uin = Number(matches[0].slice(3))
             if (!uin || isNaN(uin)) return '请输入正确的 QQ 号'
-            const info = await ctx.bot.getStrangerInfo(uin)
+            const info = await event.bot.sendApi<{ user_id: string; nickname: string }>('get_stranger_info', {
+              user_id: uin,
+            })
             return JSON.stringify(info, null, 2)
           },
 

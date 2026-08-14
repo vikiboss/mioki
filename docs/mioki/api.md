@@ -18,22 +18,34 @@ npx mioki@latest [选项]
 | ------------------- | --------------------------------- | ----------- |
 | `-h, --help`        | 显示帮助信息                      | -           |
 | `-v, --version`     | 显示版本号                        | -           |
-| `--name <name>`     | 指定项目名称                      | `bot`       |
-| `--protocol <type>` | 指定 NapCat 协议（`ws` 或 `wss`） | `ws`        |
-| `--host <host>`     | 指定 NapCat 主机地址              | `localhost` |
-| `--port <port>`     | 指定 NapCat 端口                  | `3001`      |
-| `--token <token>`   | 指定 NapCat 连接令牌              | -           |
+| `--name <name>`     | 指定项目/文件夹名称               | `bot`       |
 | `--prefix <prefix>` | 指定命令前缀                      | `#`         |
 | `--owners <qq>`     | 指定主人 QQ，英文逗号分隔         | -           |
 | `--admins <qq>`     | 指定管理员 QQ，英文逗号分隔       | -           |
 | `--use-npm-mirror`  | 使用 npm 镜像源加速依赖安装       | `false`     |
+
+### 交互流程 {#cli-flow}
+
+CLI 会依次引导你完成项目配置，并在过程中询问是否安装适配器和插件：
+
+1. 项目名称
+2. 主人 QQ / 管理员 QQ
+3. 命令前缀
+4. 是否使用 npm 镜像源
+5. **是否安装适配器？**
+6. **是否安装插件？**
+
+选中的适配器/插件会写入 `dependencies`，插件同时会注册到 `mioki.plugins`。
+
+7. **配置适配器连接参数** —— 对每一个选中的适配器，CLI 会进入该适配器自带的配置向导，逐步询问连接信息。完成后结果会自动合并进 `package.json` 的 `mioki.adapters`。
+
 
 ### 使用示例 {#cli-examples}
 
 **一键创建**（跳过交互式提问）：
 
 ```sh
-npx mioki@latest --name my-bot --token abc123 --owners 123456789
+npx mioki@latest --name my-bot --owners 123456789
 ```
 
 **完整参数**：
@@ -41,10 +53,6 @@ npx mioki@latest --name my-bot --token abc123 --owners 123456789
 ```sh
 npx mioki@latest \
   --name my-bot \
-  --protocol ws \
-  --host localhost \
-  --port 3001 \
-  --token your-napcat-token \
   --prefix "#" \
   --owners 123456789,987654321 \
   --admins 111111111,222222222 \
@@ -61,31 +69,32 @@ npx mioki@latest \
 
 ### ctx.bot
 
-NapCat 实例，提供底层通信能力。
+当前第一个 bot 实例，提供统一的适配器接口。
 
 ```ts
-ctx.bot.uin // 机器人 QQ 号
-ctx.bot.nickname // 机器人昵称
-ctx.bot.isOnline() // 是否在线
+ctx.bot?.bot_id    // 机器人 QQ 号
+ctx.bot?.nickname  // 机器人昵称
+ctx.bot?.online    // 是否在线
+ctx.bot?.adapter   // 所属适配器名，如 'onebotv11'
 
-// 发送消息
-await ctx.bot.sendGroupMsg(group_id, message)
-await ctx.bot.sendPrivateMsg(user_id, message)
+// 发送消息（跨平台 target 语法）
+await ctx.bot?.sendMessage({ type: 'group', group_id: '123' }, message)
+await ctx.bot?.sendMessage({ type: 'private', user_id: '123' }, message)
 
-// 更多方法请参考 NapCat SDK 文档
+// 判断 / 调用能力
+ctx.bot?.supports(memberKick)
+await ctx.bot?.invoke(memberKick, { group_id, user_id })
 ```
 
 ### ctx.bots
 
-所有已连接的 NapCat 实例。
+所有已连接的 bot 实例
 
 ```ts
-ctx.bots[0] // 获取第一个 NapCat 实例
-ctx.bots[0].bot_id // 某个实例的 QQ 号
-ctx.bots[0].app_name // 某个实例的应用名称
-ctx.bots[0].app_version // 某个实例的应用版本
-ctx.bots[0].name // 某个实例的自定义名称
-ctx.bots[0].sendGroupMsg(group_id, message) // 使用某个实例发送群消息
+ctx.bots[0].bot_id     // 某个实例的 QQ 号
+ctx.bots[0].adapter    // 某个实例的适配器名
+ctx.bots[0].online     // 是否在线
+ctx.bots[0].sendMessage({ type: 'group', group_id: '123' }, message) // 使用某个实例发送群消息
 ```
 
 ### ctx.segment
@@ -94,15 +103,18 @@ ctx.bots[0].sendGroupMsg(group_id, message) // 使用某个实例发送群消息
 
 ```ts
 ctx.segment.text('文本')
-ctx.segment.at(123456789)
+ctx.segment.at('123456789')
 ctx.segment.at('all')
-ctx.segment.face(66)
 ctx.segment.image('https://...')
-ctx.segment.record('https://...')
-ctx.segment.video('https://...')
-ctx.segment.json('{"app":"..."}')
+ctx.segment.image(buffer)                    // Buffer 自动转 base64
+ctx.segment.image('/path/a.png', { local: true }) // 本地图片
 ctx.segment.reply('message_id')
+ctx.segment.raw('face', { id: 66 })          // 自定义原始消息段
 ```
+
+::: tip
+OneBot 适配器还扩展了 `face`、`record`、`video`、`json`、`node`、`forward`、`file` 等消息段。
+:::
 
 ### ctx.logger
 
@@ -115,47 +127,48 @@ ctx.logger.warn('警告信息')
 ctx.logger.error('错误信息')
 ```
 
-### ctx.botConfig
+### ctx.config
 
-框架配置对象。
+框架配置对象（来自项目 `package.json` 的 `mioki` 字段）。
 
 ```ts
-ctx.botConfig.prefix // 指令前缀
-ctx.botConfig.owners // 主人列表
-ctx.botConfig.admins // 管理员列表
-ctx.botConfig.plugins // 启用的插件列表
-ctx.botConfig.log_level // 日志级别
-ctx.botConfig.plugins_dir // 插件目录
-ctx.botConfig.error_push // 是否推送错误
-ctx.botConfig.online_push // 是否推送上线通知
-ctx.botConfig.napcat // NapCat 配置
+ctx.config.prefix       // 指令前缀
+ctx.config.owners       // 主人列表
+ctx.config.admins       // 管理员列表
+ctx.config.plugins      // 启用的插件列表
+ctx.config.log_level    // 日志级别
+ctx.config.plugins_dir  // 插件目录
+ctx.config.status_permission // 状态指令权限：'all' | 'admin-only'
+ctx.config.adapters     // 适配器配置
+```
+
+### ctx.updateConfig()
+
+修改并持久化配置。
+
+```ts
+await ctx.updateConfig((c) => {
+  c.prefix = '!'
+})
 ```
 
 ### ctx.handle()
 
-注册事件处理器。
+注册事件处理器。路由支持语义路由和带适配器前缀的路由。
 
 ```ts
-ctx.handle<EventName>(
-  eventName: EventName,
-  handler: (event: EventMap[EventName]) => any,
-  options?: HandleOptions
+ctx.handle<R extends string | readonly string[]>(
+  route: R,
+  handler: (event: RouteEvent<R>) => any
 ): () => void
 ```
 
 **参数：**
 
-| 参数        | 类型            | 默认值 | 说明         |
-| ----------- | --------------- | ------ | ------------ |
-| `eventName` | `string`        | -      | 事件名称     |
-| `handler`   | `function`      | -      | 事件处理函数 |
-| `options`   | `HandleOptions` | -      | 处理器选项   |
-
-**HandleOptions：**
-
-| 选项          | 类型      | 默认值 | 说明                                                                             |
-| ------------- | --------- | ------ | -------------------------------------------------------------------------------- |
-| `deduplicate` | `boolean` | `true` | 是否启用自动去重。`true` 时同一事件只处理一次；`false` 时每个 bot 都会处理该事件 |
+| 参数        | 类型         | 默认值 | 说明     |
+|-----------|------------|-----|--------|
+| `route`   | `string`   | -   | 事件路由   |
+| `handler` | `function` | -   | 事件处理函数 |
 
 **返回值：** 取消订阅函数
 
@@ -172,22 +185,18 @@ ctx.handle('message.group', async (e) => {
   console.log(`群 ${e.group_id}: ${e.raw_message}`)
 })
 
+// 绑定 OneBot 适配器（e.bot 自动推断为 OneBot 类型）
+ctx.handle('onebotv11:message.group', async (e) => {
+  // ...
+})
+
 // 监听好友请求
 ctx.handle('request.friend', async (e) => {
   await e.approve()
 })
-
-// 禁用去重
-ctx.handle(
-  'message.group',
-  async (e) => {
-    if (e.raw_message === '赞我') {
-      await ctx.bot.like(e.user_id)
-    }
-  },
-  { deduplicate: false },
-)
 ```
+
+关于路由的完整列表，见 [插件进阶 - 事件处理](/mioki/plugin#events)。
 
 ### ctx.cron()
 
@@ -239,43 +248,26 @@ ctx.cron('*/30 * * * * *', async () => {
 })
 ```
 
-### ctx.clears
-
-清理函数集合，在插件卸载时自动执行。
-
-```ts
-const timer = setInterval(() => {}, 1000)
-ctx.clears.add(() => clearInterval(timer))
-```
-
 ### ctx.deduplicator
 
-事件去重器实例。框架已自动对消息、请求和群通知事件进行去重，一般情况下无需手动使用。
+::: warning
+`ctx.deduplicator` 已移除。框架会自动对事件去重，无需手动处理。
+:::
+
+### 清理函数
+
+插件通过 `setup` 返回清理函数，在插件卸载时自动执行（`ctx.handle`、`ctx.cron` 注册的内容也会自动清理）。
 
 ```ts
-ctx.deduplicator.isProcessed(event: DeduplicableEvent): boolean
-ctx.deduplicator.markProcessed(event: DeduplicableEvent): void
-```
-
-**使用场景：**
-
-1. **自定义去重逻辑**（处理框架未自动去重的事件类型）：
-
-```ts
-ctx.handle('meta_event.heartbeat', async (e) => {
-  // 框架未对 meta_event 自动去重
-  if (ctx.deduplicator.isProcessed(e)) return
-  ctx.deduplicator.markProcessed(e)
-  // 处理心跳...
+export default definePlugin({
+  name: 'demo',
+  setup(ctx) {
+    const timer = setInterval(() => {}, 1000)
+    return () => {
+      clearInterval(timer)
+    }
+  },
 })
-```
-
-### ctx.getCookie()
-
-获取指定域名的 Cookie 信息。
-
-```ts
-const { cookie, bkn, gtk, pskey, skey } = await ctx.getCookie('qzone.qq.com')
 ```
 
 ## 权限检查 {#permissions}
@@ -328,9 +320,9 @@ ctx.isOwnerOrAdmin(user_id: number): boolean
 ```ts
 ctx.match(
   event: MessageEvent,
-  pattern: Record<string, MatchPattern>,
+  pattern: Record<string, MatchHandler | MatchValue>,
   quote?: boolean
-): Promise<{ message_id: number } | null>
+): Promise<{ message_id: string } | null>
 ```
 
 **参数：**
@@ -341,16 +333,18 @@ ctx.match(
 | `pattern` | `object`       | -      | 匹配模式对象 |
 | `quote`   | `boolean`      | `true` | 是否引用回复 |
 
-**MatchPattern 类型：**
+**MatchValue 类型：**
 
 ```ts
-type MatchPattern =
-  | Sendable // 直接回复的消息
-  | null
-  | undefined
-  | false // 不回复
-  | ((matches: RegExpMatchArray, event: E) => Sendable) // 同步回调
-  | ((matches: RegExpMatchArray, event: E) => Promise<Sendable>) // 异步回调
+type MatchValue =
+  | string
+  | number
+  | boolean
+  | Message
+  | MessageSegment
+  | readonly (string | MessageSegment)[]
+
+type MatchHandler<T> = (matches: RegExpMatchArray, event: T) => MatchValue | Promise<MatchValue>
 ```
 
 #### 匹配模式 {#match-patterns}
@@ -494,8 +488,8 @@ ctx.handle('message', (e) => {
 从消息中提取纯文本内容。
 
 ```ts
-ctx.text(event: MessageEvent): string
-ctx.text(message: RecvElement[]): string
+ctx.text(event: MessageEvent, options?: { trim?: boolean | 'whole' | 'each' }): string
+ctx.text(message: Message, options?: { trim?: boolean | 'whole' | 'each' }): string
 ```
 
 **示例：**
@@ -507,40 +501,6 @@ ctx.handle('message', (e) => {
 })
 ```
 
-### ctx.image()
-
-从消息中提取第一张图片。
-
-```ts
-ctx.image(event: MessageEvent): RecvImageElement | undefined
-ctx.image(message: RecvElement[]): RecvImageElement | undefined
-```
-
-### ctx.images()
-
-从消息中提取所有图片。
-
-```ts
-ctx.images(event: MessageEvent): RecvImageElement[]
-ctx.images(message: RecvElement[]): RecvImageElement[]
-```
-
-### ctx.getQuoteText()
-
-获取引用消息的文本内容。
-
-```ts
-ctx.getQuoteText(event: MessageEvent): Promise<string | null>
-```
-
-### ctx.getQuoteImage()
-
-获取引用消息的第一张图片。
-
-```ts
-ctx.getQuoteImage(event: MessageEvent): Promise<RecvImageElement | null>
-```
-
 ## 消息发送 {#message-sending}
 
 ### ctx.noticeGroups()
@@ -549,19 +509,19 @@ ctx.getQuoteImage(event: MessageEvent): Promise<RecvImageElement | null>
 
 ```ts
 ctx.noticeGroups(
-  groupIdList: number[],
-  message: Sendable,
-  delay?: number
+  groupIds: string[],
+  message: MessageInput,
+  options?: { delay?: number }
 ): Promise<void>
 ```
 
 **参数：**
 
-| 参数          | 类型       | 默认值 | 说明                 |
-| ------------- | ---------- | ------ | -------------------- |
-| `groupIdList` | `number[]` | -      | 群号列表             |
-| `message`     | `Sendable` | -      | 消息内容             |
-| `delay`       | `number`   | 1000   | 每条消息间隔（毫秒） |
+| 参数         | 类型                   | 默认值 | 说明              |
+|------------|----------------------|-----|-----------------|
+| `groupIds` | `string[]`           | -   | 群号列表            |
+| `message`  | `MessageInput`       | -   | 消息内容            |
+| `options`  | `{ delay?: number }` | -   | `delay`: 每条间隔毫秒 |
 
 ### ctx.noticeFriends()
 
@@ -569,9 +529,9 @@ ctx.noticeGroups(
 
 ```ts
 ctx.noticeFriends(
-  friendIdList: number[],
-  message: Sendable,
-  delay?: number
+  userIds: string[],
+  message: MessageInput,
+  options?: { delay?: number }
 ): Promise<void>
 ```
 
@@ -580,7 +540,7 @@ ctx.noticeFriends(
 向所有管理员发送消息。
 
 ```ts
-ctx.noticeAdmins(message: Sendable, delay?: number): Promise<void>
+ctx.noticeAdmins(message: MessageInput, options?: { delay?: number }): Promise<void>
 ```
 
 ### ctx.noticeOwners()
@@ -588,15 +548,7 @@ ctx.noticeAdmins(message: Sendable, delay?: number): Promise<void>
 向所有主人发送消息。
 
 ```ts
-ctx.noticeOwners(message: Sendable, delay?: number): Promise<void>
-```
-
-### ctx.noticeMainOwner()
-
-向第一主人发送消息。
-
-```ts
-ctx.noticeMainOwner(message: Sendable): Promise<void>
+ctx.noticeOwners(message: MessageInput, options?: { delay?: number }): Promise<void>
 ```
 
 ## 工具函数 {#utils}
@@ -730,17 +682,6 @@ ctx.isGroupMsg(event: MessageEvent): event is GroupMessageEvent
 ctx.isPrivateMsg(event: MessageEvent): event is PrivateMessageEvent
 ```
 
-### ctx.ensureBuffer()
-
-确保返回可用的图片消息段。
-
-```ts
-ctx.ensureBuffer(buffer?: Buffer | null, fallbackText?: string): Sendable | null
-
-// 如果 buffer 存在，返回图片消息段
-// 如果 buffer 为空，返回 fallbackText（默认 '图片渲染失败'）
-```
-
 ## 数据持久化 {#storage}
 
 ### ctx.createDB()
@@ -794,87 +735,6 @@ const store = await ctx.createStore({ count: 0 }, { __dirname })
 
 store.data.count++
 await store.write()
-```
-
-## 错误处理 {#error-handling}
-
-### ctx.runWithErrorHandler()
-
-运行函数并捕获错误，可自动回复错误信息。
-
-```ts
-ctx.runWithErrorHandler(
-  fn: () => any,
-  event?: MessageEvent,
-  message?: Sendable | ((error: string) => Sendable)
-): Promise<any>
-```
-
-**示例：**
-
-```ts
-ctx.handle('message', async (e) => {
-  await ctx.runWithErrorHandler(
-    async () => {
-      // 可能出错的代码
-      const result = await riskyOperation()
-      await e.reply(result)
-    },
-    e,
-    '操作失败了，请稍后重试',
-  )
-})
-```
-
-## 扩展 API {#extended-api}
-
-### ctx.signArk()
-
-签名 JSON 卡片消息。
-
-```ts
-ctx.signArk(json: string): Promise<string>
-```
-
-### ctx.createForwardMsg()
-
-创建合并转发消息。
-
-```ts
-ctx.createForwardMsg(
-  message: Sendable[],
-  options?: { user_id?: number; nickname?: string }
-): Sendable
-```
-
-**示例：**
-
-```ts
-const forwardMsg = ctx.createForwardMsg(['消息 1', '消息 2', ctx.segment.image('https://...')], {
-  nickname: '自定义昵称',
-})
-
-await e.reply(forwardMsg)
-```
-
-### ctx.uploadImageToCollection()
-
-上传图片到 QQ 收藏。
-
-```ts
-ctx.uploadImageToCollection(buffer: ArrayBuffer): Promise<string>
-```
-
-### ctx.uploadImageToGroupNotice()
-
-上传图片到群公告（用于发送群公告）。
-
-```ts
-ctx.uploadImageToGroupNotice(urlOrBlob: string | Blob): Promise<{
-  id: string
-  url: string
-  // ...
-}>
 ```
 
 ## 内置指令 {#commands}
@@ -949,7 +809,7 @@ ctx.addService(name: string, service: any, cover?: boolean): () => void
 | --------- | --------- | ------- | ------------------ |
 | `name`    | `string`  | -       | 服务名称           |
 | `service` | `any`     | -       | 服务实例或工厂函数 |
-| `cover`   | `boolean` | `false` | 是否覆盖已有服务   |
+| `cover`   | `boolean` | `true`  | 是否覆盖已有服务   |
 
 **返回值：** 移除服务的函数
 
@@ -971,121 +831,74 @@ ctx.services.myService.doSomething()
 
 ```ts
 ctx.services.myService
-ctx.services.getMiokiStatus() // 内置服务：获取框架状态
 ```
 
-## 内置服务 {#builtin-services}
+## 状态信息 {#status}
 
-mioki-core 插件提供了以下内置服务，可通过 `ctx.services` 直接使用。
+### buildMiokiStatus()
 
-### getMiokiStatus()
-
-获取框架和系统的实时状态信息。
+构建框架与系统的实时状态对象。
 
 ```ts
-const status = await ctx.services.getMiokiStatus()
+import { buildMiokiStatus } from 'mioki'
+
+const status = await buildMiokiStatus({
+  bots: ctx.bots,
+  adapters: ctx.bots.map((b) => ({ name: b.adapter })),
+  enabledPlugins: ctx.plugins.list().length,
+  totalPlugins: ctx.plugins.list().length + ctx.plugins.localPlugins().length,
+})
 ```
 
 **返回值：** `MiokiStatus` 对象，包含以下信息：
 
-| 属性       | 说明                                   |
-| ---------- | -------------------------------------- |
-| `bot`      | 机器人信息（QQ号、昵称、好友数、群数） |
-| `plugins`  | 插件状态（启用数、总数）               |
-| `stats`    | 运行统计（运行时间、收发消息数）       |
-| `versions` | 版本信息（Node、mioki、NapCat、协议）  |
-| `system`   | 系统信息（名称、版本、架构）           |
-| `memory`   | 内存使用情况                           |
-| `disk`     | 磁盘使用情况                           |
-| `cpu`      | CPU 信息及使用率                       |
+| 属性         | 说明                  |
+|------------|---------------------|
+| `bots`     | bot 列表（QQ号、昵称、在线状态） |
+| `adapters` | 适配器列表               |
+| `plugins`  | 插件状态（启用数、总数）        |
+| `stats`    | 运行统计（运行时间）          |
+| `versions` | 版本信息（Node、mioki）    |
+| `system`   | 系统信息（名称、版本、架构）      |
+| `memory`   | 内存使用情况              |
+| `disk`     | 磁盘使用情况              |
+| `cpu`      | CPU 信息及使用率          |
 
 ### formatMiokiStatus()
 
 将状态对象格式化为可读的文本字符串。
 
 ```ts
-const status = await ctx.services.getMiokiStatus()
-const text = await ctx.services.formatMiokiStatus(status)
+import { formatMiokiStatus } from 'mioki'
+
+const text = await formatMiokiStatus(status)
 ```
 
-### customFormatMiokiStatus() {#custom-format-status}
+### setStatusFormatter() {#custom-format-status}
 
-自定义 `#状态` 命令的输出格式，支持返回文本、图片等任意消息类型。
+自定义 `#状态` 命令的输出文本格式。
 
 ```ts
-ctx.services.customFormatMiokiStatus(formatter: StatusFormatter): void
+import { setStatusFormatter } from 'mioki'
+
+setStatusFormatter((status) => {
+  return `🤖 插件: ${status.plugins.enabled}/${status.plugins.total}
+⏳ 运行时长: ${prettyMs(status.stats.uptime)}
+💾 内存: ${status.memory.percent}%`
+})
 ```
 
-**参数：**
+### registerStatusProvider()
 
-| 参数        | 类型              | 说明             |
-| ----------- | ----------------- | ---------------- |
-| `formatter` | `StatusFormatter` | 自定义格式化函数 |
-
-**StatusFormatter 类型：**
+为适配器注册状态提供者（适配器内部使用），将平台数据合并进 `#状态` 输出。
 
 ```ts
-type StatusFormatter = (status: MiokiStatus) => Awaitable<Arrayable<Sendable>>
-```
+import { registerStatusProvider } from 'mioki'
 
-返回值可以是：
-
-- 字符串（文本消息）
-- 消息段对象（图片、语音等）
-- 消息段数组（组合多种类型）
-
-**示例：**
-
-::: code-group
-
-```ts [基础：自定义文本]
-export default definePlugin({
-  name: 'custom-status',
-  setup(ctx) {
-    ctx.services.customFormatMiokiStatus((status) => {
-      return `🤖 ${status.bot.nickname}
-📊 运行时长: ${prettyMs(status.stats.uptime)}
-💾 内存: ${status.memory.percent}%
-🔌 插件: ${status.plugins.enabled}/${status.plugins.total}`
-    })
-  },
+registerStatusProvider('onebotv11', async ({ bot }) => {
+  return { version: '1.0.0', data: { friends: 100, groups: 50 } }
 })
 ```
-
-```ts [进阶：返回图片]
-export default definePlugin({
-  name: 'image-status',
-  setup(ctx) {
-    ctx.services.customFormatMiokiStatus(async (status) => {
-      // 使用渲染插件生成图片
-      const imageUrl = await renderStatusImage(status)
-      return ctx.segment.image(imageUrl)
-    })
-  },
-})
-```
-
-```ts [高级：组合消息]
-export default definePlugin({
-  name: 'rich-status',
-  setup(ctx) {
-    ctx.services.customFormatMiokiStatus(async (status) => {
-      const image = await renderStatusImage(status)
-      return [ctx.segment.image(image), ctx.segment.text(`\n详细信息: ${status.bot.nickname}`)]
-    })
-  },
-})
-```
-
-:::
-
-::: tip 💡 使用场景
-
-- **自定义文本格式**：调整状态信息的展示样式和内容
-- **图片状态卡片**：结合渲染插件生成美观的状态图片
-- **多语言支持**：根据配置返回不同语言的状态信息
-- **隐藏敏感信息**：过滤掉不想展示的系统信息
-  :::
 
 ## 下一步 {#next-steps}
 

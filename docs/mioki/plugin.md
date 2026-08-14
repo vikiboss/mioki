@@ -1,6 +1,6 @@
 # mioki 插件进阶 {#plugin-advanced}
 
-本文档深入介绍 mioki 插件开发的高级特性，包括生命周期、事件处理、消息匹配等内容。
+本文档深入介绍 mioki 插件开发的高级特性，包括生命周期、事件处理、消息匹配、能力调用等内容。
 
 ## 插件生命周期 {#lifecycle}
 
@@ -27,9 +27,9 @@ mioki 插件的加载流程如下：
 清理函数包括：
 
 - `setup` 返回的清理函数
-- `ctx.clears` 中注册的清理函数
 - `ctx.handle` 注册的事件监听器（自动清理）
 - `ctx.cron` 注册的定时任务（自动清理）
+- `ctx.addService` 注册的服务（自动移除）
 
 ### 插件优先级
 
@@ -45,24 +45,25 @@ export default definePlugin({
 
 **默认优先级：** 100
 
-**内置插件优先级：** 1
+**内置插件优先级：** 8
 
 **使用场景：**
 
 - 需要在其他插件之前初始化的基础服务
-- 依赖其他插件注册的服务时，应设置较高的 priority 值
+- 依赖其他插件注册的服务时，应设置较大的 priority 值
 
 ## 事件处理 {#event-handling}
 
-### 事件类型
+### 事件路由
 
-mioki 支持监听 NapCat SDK 的所有事件类型：
+路由使用**点分格式**，可监听主类型或更具体的子类型：
 
 ```ts
 // 消息事件
 ctx.handle('message', handler)           // 所有消息
 ctx.handle('message.group', handler)     // 群消息
 ctx.handle('message.private', handler)   // 私聊消息
+ctx.handle('message.group.normal', handler) // 普通群消息
 
 // 通知事件
 ctx.handle('notice', handler)                    // 所有通知
@@ -76,9 +77,21 @@ ctx.handle('request', handler)                   // 所有请求
 ctx.handle('request.friend', handler)            // 好友请求
 ctx.handle('request.group.add', handler)         // 入群申请
 
-// 系统事件
-ctx.handle('napcat.connected', handler)          // 连接成功
-ctx.handle('ws.close', handler)                  // 连接断开
+// 元事件
+ctx.handle('meta_event', handler)                // 元事件
+```
+
+### 适配器绑定路由
+
+在路由前加 `<适配器名>:` 前缀，可以只监听指定平台，且 `event.bot` 会自动推断为对应平台类型：
+
+```ts
+import 'mioki-adapter-onebotv11'
+
+// e.bot 自动推断为 OneBot 类型
+ctx.handle('onebotv11:message.group', async (e) => {
+  await e.bot.sendLike(e.user_id!, 10)
+})
 ```
 
 ### 事件对象
@@ -90,14 +103,18 @@ ctx.handle('ws.close', handler)                  // 连接断开
 ```ts
 ctx.handle('message.group', async (e) => {
   // 基础信息
-  e.message_id      // 消息 ID
-  e.group_id        // 群号
-  e.group_name      // 群名
-  e.user_id         // 发送者 QQ
-  e.raw_message     // 原始消息文本
-  e.message         // 消息段数组
-  e.quote_id        // 引用的消息 ID
-
+  e.bot                 // 处理该事件的实例
+  e.raw_message         // 原始消息文本
+  e.user_id             // 发送者 QQ
+  e.group_id            // 群号
+  e.group_name          // 群名
+  e.message             // 消息段数组
+  e.message_id          // 消息 ID
+  e.quote_id            // 引用的消息 ID
+  e.message_type        // 消息类型
+  e.conversation        // 会话信息
+  e.is_to_me            // 是否 @ 机器人
+  
   // 发送者信息
   e.sender.user_id  // 发送者 QQ
   e.sender.nickname // 发送者昵称
@@ -110,17 +127,9 @@ ctx.handle('message.group', async (e) => {
   e.group.getMemberList()        // 获取成员列表
   e.group.ban(user_id, duration) // 禁言
 
-  // 消息操作
-  await e.reply('回复内容')       // 回复消息
-  await e.reply('回复', true)     // 引用回复
-  await e.recall()                // 撤回消息
-  await e.addReaction('66')       // 添加表态
-  await e.delReaction('66')       // 移除表态
-  await e.setEssence()            // 设为精华
-  await e.delEssence()            // 取消精华
-
-  // 获取引用消息
-  const quoteMsg = await e.getQuoteMsg()
+  await e.reply('回复内容')          // 回复消息
+  await e.reply('引用回复', true)    // 引用回复
+  await e.recall()                  // 撤回消息
 })
 ```
 
@@ -193,36 +202,6 @@ export default definePlugin({
 })
 ```
 
-### 多实例去重
-
-在连接多个 NapCat 实例的情况下，mioki 已经自动对消息进行了基本的去重处理。  
-包括：  
-- 消息事件 `message`
-- 请求事件 `request`
-- 群通知事件 `notice`
-
-你也可以在插件中自行决定是否需要使用自动去重：
-
-```ts
-export default definePlugin({
-  name: 'like-bot',
-  setup(ctx) {
-    // 禁用去重：每个 bot 都会执行点赞
-    ctx.handle(
-      'message.group',
-      async (event) => {
-        if (event.raw_message === '赞我') {
-          // 当前 bot 给发送者点赞
-          await ctx.bot.like(event.user_id)
-          ctx.logger.info(`Bot ${ctx.self_id} 给 ${event.user_id} 点赞`)
-        }
-      },
-      { deduplicate: false }, //标记事件不需要自动去重
-    )
-  },
-})
-```
-
 ## 消息匹配 {#message-matching}
 
 ### 基础匹配
@@ -268,14 +247,21 @@ ctx.handle('message', (e) => {
       return `今日天气：${data.weather}`
     },
 
-    // 返回消息段数组
-    测试: () => [ctx.segment.text('测试成功 '), ctx.segment.face(66)],
+    // 正则匹配，回调可获取匹配组
+    '/^(?<city>.{2,10})天气$/': (matches) => `查不到 ${matches.groups?.city} 的天气`,
+
+    // 通配符匹配
+    '查*余额': async () => '你的余额: 100',
 
     // 返回 null/undefined/false 则不回复
     静默: () => null,
   })
 })
 ```
+
+::: tip 💡 匹配优先级
+匹配按照对象属性的定义顺序进行，第一个匹配成功的规则会触发回复并结束匹配。
+:::
 
 ### 指令解析
 
@@ -326,6 +312,69 @@ ctx.handle('message', async (e) => {
 })
 ```
 
+## 能力调用 {#capabilities}
+
+能力（Capability）是跨适配器的语义化 API。插件用 `bot.supports()` 判断、`bot.invoke()` 调用，不关心底层平台：
+
+```ts
+import { definePlugin, memberKick, memberSetCard, segment } from 'mioki'
+import 'mioki-adapter-onebotv11'
+
+export default definePlugin({
+  name: 'admin-demo',
+  setup(ctx) {
+    ctx.handle('onebotv11:message.group', async (e) => {
+      if (!e.group_id || !e.user_id) return
+
+      // 踢人
+      if (e.raw_message === '踢') {
+        if (!e.bot.supports(memberKick)) return
+        await e.bot.invoke(memberKick, { group_id: e.group_id, user_id: e.user_id })
+        await e.reply('已踢出')
+      }
+
+      // 设置头衔
+      if (e.raw_message.startsWith('头衔 ')) {
+        await e.bot.invoke(memberSetCard, {
+          group_id: e.group_id,
+          user_id: e.user_id,
+          card: e.raw_message.slice(3),
+        })
+        await e.reply('已设置')
+      }
+    })
+  },
+})
+```
+
+内核内置的能力：
+
+| 能力                                                 | 说明              |
+|----------------------------------------------------|-----------------|
+| `messageSend` / `messageRecall`                    | 发送 / 撤回消息       |
+| `messageGet` / `messageGetForward`                 | 查询单条消息 / 合并转发内容 |
+| `memberBan` / `memberKick`                         | 禁言 / 踢出成员       |
+| `memberSetCard` / `memberSetAdmin`                 | 设置名片 / 设置管理员    |
+| `memberGetInfo`                                    | 获取成员信息          |
+| `groupGetInfo` / `groupGetMembers`                 | 获取群信息 / 成员列表    |
+| `groupGetList`                                     | 获取群列表           |
+| `groupLeave` / `groupSetName` / `groupSetPortrait` | 退群 / 改群名 / 改群头像 |
+| `friendGetInfo` / `friendGetList` / `friendDelete` | 好友信息 / 列表 / 删除  |
+| `conversationGetHistory`                           | 获取历史消息          |
+
+这些能力已经封装在事件对象上（`e.group`、`e.friend`），直接用更省事：
+
+```ts
+ctx.handle('onebotv11:message.group', async (e) => {
+  if (!e.group) return
+
+  await e.group.setName('新群名')        // 改群名
+  await e.group.setPortrait('https://...') // 改群头像
+  await e.group.leave()                  // 主动退群
+  const groups = await e.group.getList() // 拉群列表
+  const info = await e.group.getInfo()   // 群信息
+})
+```
 ## 定时任务 {#cron-tasks}
 
 ### Cron 表达式
@@ -373,7 +422,7 @@ ctx.cron('0 8 * * *', async (ctx, task) => {
 const task = ctx.cron('* * * * *', handler)
 
 // 暂停任务
-task.stop()
+await task.stop()
 
 // 恢复任务
 task.start()
@@ -598,7 +647,8 @@ export default definePlugin({
 ### 群管理插件
 
 ```ts
-import { definePlugin } from 'mioki'
+import { definePlugin, memberBan, segment } from 'mioki'
+import 'mioki-adapter-onebotv11'
 
 export default definePlugin({
   name: 'group-admin',
@@ -611,46 +661,15 @@ export default definePlugin({
       const text = ctx.text(e)
 
       // 禁言
-      if (text.startsWith('禁言 ')) {
-        const atElement = e.message.find((m) => m.type === 'at')
-        if (!atElement || atElement.qq === 'all') {
-          await e.reply('请 @要禁言的成员', true)
-          return
-        }
-
+      if (text.startsWith('禁言 ') && targetId && targetId !== 'all') {
         const duration = parseInt(text.split(' ')[1]) || 10
-        const userId = parseInt(atElement.qq)
-
-        await e.group.ban(userId, duration * 60)
+        await e.bot.invoke(memberBan, { group_id: e.group_id, user_id: String(targetId), duration: duration * 60 })
         await e.reply(`已禁言 ${duration} 分钟`, true)
       }
 
-      // 解禁
-      if (text.startsWith('解禁 ')) {
-        const atElement = e.message.find((m) => m.type === 'at')
-        if (!atElement || atElement.qq === 'all') {
-          await e.reply('请 @要解禁的成员', true)
-          return
-        }
-
-        const userId = parseInt(atElement.qq)
-        await e.group.ban(userId, 0)
-        await e.reply('已解除禁言', true)
-      }
-
       // 踢人
-      if (text === '踢') {
-        const atElement = e.message.find((m) => m.type === 'at')
-        if (!atElement || atElement.qq === 'all') {
-          await e.reply('请 @要踢出的成员', true)
-          return
-        }
-
-        const userId = parseInt(atElement.qq)
-        await ctx.bot.api('set_group_kick', {
-          group_id: e.group_id,
-          user_id: userId,
-        })
+      if (text === '踢' && targetId && targetId !== 'all') {
+        await e.bot.invoke(memberBan, { group_id: e.group_id, user_id: String(targetId), duration: 0 })
         await e.reply('已踢出', true)
       }
     })
@@ -710,20 +729,22 @@ ctx.logger.error('错误信息')
 #插件 重载 my-plugin
 ```
 
-### 错误处理
+### 订阅生命周期
+
+使用 `ctx.onBot` 订阅机器人上下线事件：
 
 ```ts
-ctx.handle('message', async (e) => {
-  await ctx.runWithErrorHandler(async () => {
-    // 可能出错的代码
-    const result = await riskyOperation()
-    await e.reply(result)
-  }, e, (error) => `出错了：${error}`)
+ctx.onBot('connected', ({ bot }) => {
+  ctx.logger.info(`Bot ${bot.bot_id} 已上线`)
+})
+
+ctx.onBot('disconnected', ({ bot, reason }) => {
+  ctx.logger.info(`Bot ${bot.bot_id} 已下线: ${reason}`)
 })
 ```
 
 ## 下一步 {#next-steps}
 
 - 查看 [mioki API 文档](/mioki/api) 了解完整 API
-- 阅读 [NapCat SDK 事件文档](/napcat-sdk/event) 了解所有事件类型
+- 学习 [编写适配器](/mioki/adapter) 对接更多平台
 - 回到 [插件入门](/plugin) 复习基础知识

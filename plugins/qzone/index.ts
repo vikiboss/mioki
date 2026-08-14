@@ -1,14 +1,16 @@
 import { definePlugin } from 'mioki'
+import 'mioki-adapter-onebotv11'
 
 export default definePlugin({
   name: 'qzone',
   async setup(ctx) {
-    ctx.handle('message', async (e) => {
+    ctx.handle('onebotv11:message', async (e) => {
       if (!ctx.isOwner(e)) return
 
-      if (e.raw_message.startsWith('发说说')) {
-        const content = e.raw_message.replace('发说说', '').trim()
-        const { legacyCookie } = await ctx.getCookie('qzone.qq.com')
+      const text = e.message.text()
+      if (text.startsWith('发说说')) {
+        const content = text.replace('发说说', '').trim()
+        const { legacyCookie } = await e.bot.getCookie('qzone.qq.com')
         const success = await sendQzonePost(legacyCookie, content)
         await e.reply(success ? '说说发布成功' : '说说发布失败')
       }

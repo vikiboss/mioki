@@ -32,7 +32,7 @@ export default definePlugin({
     const bp = new BrowserPool({
       maxWsEndpoints: 3,
       onReady() {
-        ctx.bot.logger.info(`>>> BrowserPool is ready: ${executablePath}`)
+        ctx.logger.info(`>>> BrowserPool is ready: ${executablePath}`)
       },
       launchOptions: {
         executablePath,
@@ -59,8 +59,8 @@ export default definePlugin({
       })
     })
 
-    ctx.clears.add(async () => {
+    return async () => {
       await bp.destroy()
-    })
+    }
   },
 })

@@ -1,8 +1,10 @@
 {
   "name": "bot",
   "private": true,
+  "type": "module",
   "dependencies": {
-    "mioki": "workspace:*"
+    "mioki": "workspace:*",
+    "mioki-adapter-onebotv11": "workspace:*"
   },
   "scripts": {
     "start": "node app.ts"

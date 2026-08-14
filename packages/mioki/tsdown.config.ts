@@ -10,6 +10,7 @@ const config: UserConfig = defineConfig({
   treeshake: true,
   failOnWarn: false,
   cjsDefault: true,
+  external: [],
 })
 
 export default config

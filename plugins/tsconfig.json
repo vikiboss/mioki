@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "jsx": "react",
+    "paths": {
+      "mioki": ["../packages/mioki/src/index.ts"],
+      "mioki-adapter-onebotv11": ["../packages/mioki-adapter-onebotv11/src/index.ts"]
+    }
+  },
+  "include": ["./**/*.ts"]
+}

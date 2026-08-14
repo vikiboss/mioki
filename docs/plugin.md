@@ -54,59 +54,29 @@ plugins/
 export default definePlugin({
   name: 'demo',
   setup(ctx) {
-    // 机器人实例（当前处理事件的 bot）
-    ctx.bot // NapCat 实例
+    // 机器人实例（第一个已连接的 bot，可能为 undefined）
+    ctx.bot
 
     // 所有已连接的 bot 列表
-    ctx.bots // ExtendedNapCat[]
+    ctx.bots
 
-    // 当前 bot 的 QQ 号
-    ctx.self_id // number
+    // 第一个 bot 的 QQ 号
+    ctx.self_id
 
-    // 机器人信息
-    ctx.bot.uin // QQ 号
-    ctx.bot.nickname // 昵称
+    // 按 bot_id / (adapter, bot_id) 选取 bot
+    ctx.pickBot(bot_id)
+    ctx.pickAdapterBot('onebotv11', bot_id)
 
-    // 消息构造器
-    ctx.segment // 消息段构造器
+    // 消息段构造器（通用段）
+    ctx.segment
 
     // 日志器
-    ctx.logger // 插件专属日志器
+    ctx.logger
 
-    // 事件去重器
-    ctx.deduplicator // Deduplicator
-
-    // 配置信息
-    ctx.botConfig // 框架配置
+    // 配置信息（只读）
+    ctx.config
     ctx.isOwner(event) // 检查是否为主人
     ctx.isAdmin(event) // 检查是否为管理员
-  },
-})
-```
-
-### 多实例支持
-
-mioki 支持连接多个 NapCat 实例。  
-当配置了多个 NapCat 实例时，上下文对象会提供额外的能力：
-
-```ts
-export default definePlugin({
-  name: 'multi-bot',
-  setup(ctx) {
-    // 获取所有 bot 信息
-    ctx.bots.forEach((bot) => {
-      ctx.logger.info(`Bot: ${bot.nickname} (${bot.bot_id})`)
-      ctx.logger.info(`App: ${bot.app_name} v${bot.app_version}`)
-      if (bot.name) {
-        ctx.logger.info(`Name: ${bot.name}`)
-      }
-    })
-
-    // 遍历所有群
-    for (const bot of ctx.bots) {
-      const groups = await bot.getGroupList()
-      ctx.logger.info(`${bot.name || bot.nickname}: ${groups.length} 个群`)
-    }
   },
 })
 ```
@@ -121,7 +91,7 @@ export default definePlugin({
   setup(ctx) {
     // 监听所有消息
     ctx.handle('message', async (event) => {
-      ctx.logger.info(`收到消息：${event.raw_message}`)
+      ctx.logger.info(`收到消息：${event.message.text()}`)
     })
 
     // 仅监听群消息
@@ -148,6 +118,18 @@ export default definePlugin({
 })
 ```
 
+::: tip 💡 适配器绑定路由
+只想监听某个平台？在路由前加 `<适配器名>:` 前缀，`event.bot` 还会自动推断为对应平台类型：
+
+```ts
+import 'mioki-adapter-onebotv11' // 引入类型增补
+
+ctx.handle('onebotv11:message.group', async (event) => {
+  await event.bot.sendLike(event.user_id!, 10) // event.bot 是 OneBot
+})
+```
+:::
+
 ### 定时任务
 
 使用 `ctx.cron` 注册定时任务（基于 cron 表达式）：
@@ -157,8 +139,8 @@ export default definePlugin({
   name: 'demo',
   setup(ctx) {
     // 每天早上 8 点执行
-    ctx.cron('0 8 * * *', async (ctx, task) => {
-      await ctx.noticeOwners('早上好！')
+    ctx.cron('0 8 * * *', async (ctx) => {
+      ctx.logger.info('早上好！')
     })
 
     // 每 30 分钟执行一次
@@ -183,58 +165,35 @@ ctx.handle('message', async (event) => {
   // 简单回复
   await event.reply('Hello!')
 
-  // 引用回复（第二个参数为 true）
-  await event.reply('这是引用回复', true)
+  // 引用回复
+  await event.reply('这是引用回复', { quote: true })
+  await event.reply('这也是引用回复', true) // 兼容写法
 
   // 发送多个消息段
-  await event.reply(['Hello, ', ctx.segment.at(event.user_id), '!'])
+  await event.reply(['Hello, ', ctx.segment.at(event.user_id!), '!'])
 })
 ```
 
 ### 消息段构造
 
-使用 `ctx.segment` 构造各种类型的消息：
+核心 `segment` 提供跨平台通用段：
 
 ```ts
-ctx.handle('message', async (event) => {
-  // 纯文本
-  ctx.segment.text('Hello')
+ctx.segment.text('Hello')                    // 文本
+ctx.segment.at(userId)                       // @某人
+ctx.segment.image('https://example.com/a.png') // 图片（支持 URL / Buffer / 本地文件）
+ctx.segment.image(buffer)                    // Buffer 自动转 base64
+ctx.segment.image('/path/to/a.png', { local: true }) // 本地文件
+ctx.segment.reply(messageId)                 // 回复
+ctx.segment.raw('face', { id: '66' })        // 兜底任意段
+```
 
-  // @某人
-  ctx.segment.at(123456789)
-  ctx.segment.at('all') // @全体成员
+QQ 专属段（`face`、`record`、`video`、`json`、`forward` 等）由适配器包提供：
 
-  // QQ 表情
-  ctx.segment.face(66) // 爱心表情
+```ts
+import { segment } from 'mioki-adapter-onebotv11'
 
-  // 图片
-  ctx.segment.image('https://example.com/image.png')
-  ctx.segment.image('file:///path/to/image.png')
-  ctx.segment.image('base64://...')
-
-  // 语音
-  ctx.segment.record('https://example.com/audio.mp3')
-
-  // 视频
-  ctx.segment.video('https://example.com/video.mp4')
-
-  // JSON 卡片
-  ctx.segment.json('{"app":"com.tencent.xxx",...}')
-
-  // 合并转发
-  ctx.segment.forward('转发消息ID')
-
-  // 回复
-  ctx.segment.reply('消息ID')
-
-  // 组合发送
-  await event.reply([
-    ctx.segment.at(event.user_id),
-    ' 这是一条测试消息 ',
-    ctx.segment.face(66),
-    ctx.segment.image('https://example.com/image.png'),
-  ])
-})
+segment.face(66) // 爱心表情
 ```
 
 ## 消息匹配 {#match}
@@ -248,7 +207,7 @@ ctx.handle('message', async (event) => {
     ping: 'pong',
     hello: 'world',
 
-    // 函数：动态回复
+    // 函数：动态回复（matches / event 自动推断类型）
     时间: () => new Date().toLocaleString('zh-CN'),
 
     // 异步函数
@@ -265,7 +224,7 @@ ctx.handle('message', async (event) => {
 
 ## 插件清理 {#cleanup}
 
-`setup` 函数可以返回一个清理函数，在插件卸载时自动执行：
+`setup` 函数可以返回一个清理函数，在插件卸载时自动执行。`ctx.handle` 和 `ctx.cron` 注册的回调会自动清理，无需手动处理。
 
 ```ts
 export default definePlugin({
@@ -284,20 +243,6 @@ export default definePlugin({
 })
 ```
 
-你也可以使用 `ctx.clears` 手动注册清理函数：
-
-```ts
-export default definePlugin({
-  name: 'demo',
-  setup(ctx) {
-    const timer = setInterval(() => {}, 60000)
-
-    // 注册清理函数
-    ctx.clears.add(() => clearInterval(timer))
-  },
-})
-```
-
 ## 插件示例 {#examples}
 
 ### 复读机插件
@@ -310,15 +255,9 @@ export default definePlugin({
   version: '1.0.0',
   setup(ctx) {
     ctx.handle('message.group', async (event) => {
-      if (event.raw_message === '复读') {
-        const lastMessage = event.message
-          .filter((m) => m.type === 'text')
-          .map((m) => m.text)
-          .join('')
-
-        if (lastMessage) {
-          await event.reply(lastMessage)
-        }
+      const text = event.message.text()
+      if (text === '复读') {
+        await event.reply(event.message.text())
       }
     })
   },
@@ -328,17 +267,19 @@ export default definePlugin({
 ### 入群欢迎插件
 
 ```ts
-import { definePlugin } from 'mioki'
+import { definePlugin, segment } from 'mioki'
 
 export default definePlugin({
   name: 'welcome',
   version: '1.0.0',
   setup(ctx) {
     ctx.handle('notice.group.increase', async (event) => {
-      await event.group.sendMsg([
-        ctx.segment.at(event.user_id),
-        ' 欢迎加入群聊！请阅读群公告～',
-      ])
+      const { bot, group_id, user_id } = event
+      if (!group_id || !user_id) return
+      await bot.sendMessage(
+        { type: 'group', group_id },
+        [segment.at(user_id), ' 欢迎加入群聊！请阅读群公告～'],
+      )
     })
   },
 })
@@ -361,34 +302,12 @@ export default definePlugin({
 
     // 自动同意入群申请（包含特定答案）
     ctx.handle('request.group.add', async (event) => {
-      if (event.comment.includes('暗号')) {
+      if (event.comment?.includes('暗号')) {
         ctx.logger.info(`自动同意入群申请：${event.user_id}`)
         await event.approve()
       } else {
         await event.reject('请填写正确的暗号')
       }
-    })
-  },
-})
-```
-
-### 定时提醒插件
-
-```ts
-import { definePlugin } from 'mioki'
-
-export default definePlugin({
-  name: 'reminder',
-  version: '1.0.0',
-  setup(ctx) {
-    // 每天早上 9 点提醒打卡
-    ctx.cron('0 9 * * *', async () => {
-      await ctx.noticeGroups([123456789], '📢 各位早上好，别忘了打卡！')
-    })
-
-    // 每周五下午 5 点提醒周报
-    ctx.cron('0 17 * * 5', async () => {
-      await ctx.noticeOwners('📝 周五了，记得写周报！')
     })
   },
 })
@@ -411,4 +330,4 @@ export default definePlugin({
 
 - 查看 [mioki 插件进阶](/mioki/plugin) 学习更多高级特性
 - 阅读 [mioki API 文档](/mioki/api) 了解完整 API
-- 探索 [NapCat SDK 文档](/napcat-sdk/) 了解底层能力
+- 到 [插件商店](/mioki/plugin-store) 看看别人写的插件

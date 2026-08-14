@@ -3,10 +3,8 @@
   "type": "module",
   "version": "0.16.0",
   "packageManager": "pnpm@10.26.0",
-  "description": "A simple NapCat OneBot v11 framework.",
+  "description": "A platform-agnostic bot framework core, designed around adapter and plugin contracts.",
   "keywords": [
-    "onebot",
-    "onebot v11",
     "framework",
     "bot"
   ],
@@ -49,13 +47,12 @@
     "jiti": "^2.6.1",
     "lowdb": "^7.0.1",
     "mri": "^1.2.0",
-    "napcat-sdk": "workspace:*",
     "node-cron": "^4.2.1",
     "pretty-ms": "^9.3.0",
-    "string2argv": "^1.0.2",
-    "systeminformation": "^5.30.7"
+    "string2argv": "^1.0.2"
   },
   "devDependencies": {
+    "@types/node": "catalog:dev",
     "tsdown": "catalog:dev",
     "typescript": "catalog:dev"
   }

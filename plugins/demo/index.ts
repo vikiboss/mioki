@@ -1,4 +1,4 @@
-import { definePlugin } from 'mioki'
+import { definePlugin, segment } from 'mioki'
 
 export default definePlugin({
   name: 'demo',
@@ -6,51 +6,35 @@ export default definePlugin({
   async setup(ctx) {
     ctx.logger.info('Demo 插件已加载')
 
-    // ctx.bot.nickname;
-    // ctx.bot.uin;
-    // ctx.bot.api('xxx', params);
-
-    // ctx.bot.sendGroupMsg(123456789, 'Hello Group!') // 发送群消息
-
-    // const group = await ctx.bot.pickGroup(123456789) // 使用群号选择一个群实例
-    // group?.sign() // 调用群实例方法
-
-    // const friend = await ctx.bot.pickFriend(987654321) // 使用好友号选择一个好友实例
-    // friend?.delete() // 调用好友实例方法
-
     // 处理所有消息：群、好友
     ctx.handle('message', async (e) => {
-      // 收到 hello 消息时回复 world
-      if (e.raw_message === 'hello') {
-        // 第二个参数表示是否回复原消息
-        e.reply('world', true)
+      const text = e.message.text()
+
+      // 收到 hello 消息时回复 world（quote 表示引用原消息）
+      if (text === 'hello') {
+        await e.reply('world', { quote: true })
       }
 
-      // 收到 love 消息时回复"爱你哟"和一个爱心 QQ 表情
-      if (e.raw_message === 'love') {
-        // 复杂消息消息可以使用数组组合
-        e.reply(['爱你哟 ', ctx.segment.face(66)])
+      // 收到 love 消息时回复"爱你哟"
+      if (text === 'love') {
+        await e.reply('爱你哟')
       }
 
       // 收到 壁纸 消息时回复今天的 bing 壁纸
-      if (e.raw_message === '壁纸') {
-        e.reply(ctx.segment.image('https://60s.viki.moe/v2/bing?encoding=image'))
+      if (text === '壁纸') {
+        await e.reply(segment.image('https://60s.viki.moe/v2/bing?encoding=image'))
       }
 
       // 收到 一言 消息时回复一言
-      if (e.raw_message === '一言') {
+      if (text === '一言') {
         const data = await (await fetch('https://v1.hitokoto.cn/')).json()
-        e.reply(data.hitokoto, true)
+        await e.reply(data.hitokoto, { quote: true })
       }
     })
 
     ctx.handle('message.group', (e) => {
-      // 处理群消息
-      // 调用消息实例上挂载的快速方法
-      // e.reply('这是群消息的回复') // 回复消息
-      // e.recall() // 撤回消息
-      // e.getQuoteMsg() // 获取引用的消息
-      // e.group.getInfo(); // 也可以通过群消息事件获取群实例，并调用群实例方法获取群信息
+      // 处理群消息，e 为 MessageEvent
+      // e.message / e.user_id / e.group_id / e.reply(...)
     })
 
     ctx.handle('message.private', (e) => {
@@ -68,9 +52,8 @@ export default definePlugin({
       ctx.logger.info('Notice', e)
     })
 
-    // 注册定时任务
-    ctx.cron('*/3 * * * * *', async (ctx, task) => {
-      ctx.logger.info('Cron', task)
+    ctx.cron('0 0 9 * * *', (ctx) => {
+      ctx.logger.info('每天早上 9 点执行')
     })
 
     return () => {

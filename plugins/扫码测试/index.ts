@@ -34,14 +34,14 @@ export default definePlugin({
         })
 
         const cookie = await session.login().catch((err) => {
-          ctx.bot.logger.error('扫码登录会员失败', err)
+          ctx.logger.error('扫码登录会员失败', err)
           e.reply('>>> 登录会员失败，请稍后重试', true)
           return null
         })
 
         if (cookie) {
-          ctx.bot.logger.info('扫码登录会员成功', cookie)
-          e.reply(`>>> 登录会员成功，请通过控制台查看 cookie`)
+          ctx.logger.info('扫码登录会员成功', cookie)
+          e.reply('>>> 登录会员成功，请通过控制台查看 cookie')
         }
       }
     })
