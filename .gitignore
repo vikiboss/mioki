@@ -2,9 +2,13 @@ node_modules
 .DS_Store
 dist
 logs
+.idea/
+.pnpm-store/
 
 bot
 **/plugins/**/.browser-data
+example/data/
+packages/mioki-adapter-icqq/vendor/
 
 # VitePress build output
 docs/.vitepress/dist

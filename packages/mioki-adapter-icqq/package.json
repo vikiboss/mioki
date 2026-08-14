@@ -1,0 +1,79 @@
+{
+  "name": "mioki-adapter-icqq",
+  "type": "module",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.27.0",
+  "description": "icqq adapter for mioki.",
+  "keywords": [
+    "mioki",
+    "icqq",
+    "qq",
+    "napcat",
+    "protocol",
+    "bot"
+  ],
+  "engines": {
+    "node": ">= 22.18.0"
+  },
+  "homepage": "https://github.com/vikiboss/mioki#readme",
+  "files": [
+    "dist",
+    "vendor/icqq"
+  ],
+  "bugs": {
+    "url": "https://github.com/vikiboss/mioki/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vikiboss/mioki.git",
+    "directory": "packages/mioki-adapter-icqq"
+  },
+  "scripts": {
+    "dev": "tsdown -w",
+    "build": "tsdown"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./vendor/icqq": {
+      "types": "./vendor/icqq/lib/index.d.ts",
+      "import": "./vendor/icqq/lib/index.mjs",
+      "require": "./vendor/icqq/lib/index.js",
+      "default": "./vendor/icqq/lib/index.mjs"
+    },
+    "./vendor/icqq/package.json": "./vendor/icqq/package.json",
+    "./package.json": "./package.json"
+  },
+  "author": "Jerryplusy",
+  "license": "MPL-2.0",
+  "peerDependencies": {
+    "mioki": "workspace:*"
+  },
+  "dependencies": {
+    "axios": "1.19.0",
+    "log4js": "^6.9.1",
+    "pngjs": "^7.0.0",
+    "probe-image-size": "^7.2.3",
+    "protobufjs": "^6.10.0",
+    "silk-wasm": "^3.6.1",
+    "triptrap": "^0.0.17",
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:dev",
+    "mioki": "workspace:*",
+    "tsdown": "catalog:dev",
+    "typescript": "catalog:dev"
+  }
+}

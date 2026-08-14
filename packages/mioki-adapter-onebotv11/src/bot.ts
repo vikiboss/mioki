@@ -309,7 +309,7 @@ export const createOneBot = (params: {
       }
     },
     as<T extends object = Record<string, unknown>>(): T {
-      return data as unknown as T
+      return this as unknown as T
     },
   }
   return bot

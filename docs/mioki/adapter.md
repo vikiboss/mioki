@@ -92,6 +92,7 @@ export default defineAdapter<MyAdapterConfig>({
 | `unregisterBot(bot_id)`                           | 注销 Bot                                  |
 | `getDriver()`                                     | 获取 Driver（WS / HTTP 客户端）                |
 | `registerCapability(capability, target, handler)` | 注册能力，`target` 形如 `{ adapter, bot_id }`  |
+| `getCapabilityRegistry()`                         | 获取能力注册表，配合 `bindCapabilities` 使用        |
 | `registerGateway(gateway)`                        | 注册连接网关                                  |
 | `registerResource(resource)`                      | 注册可清理的资源                                |
 | `dispatch(event)`                                 | 将转换好的 Event 分发到事件总线                     |
@@ -99,37 +100,52 @@ export default defineAdapter<MyAdapterConfig>({
 
 ## 实现 Bot {#implement-bot}
 
-Bot 是实现内核 `Bot` 接口的对象，至少需要：
+Bot 是实现内核 `Bot` 接口的对象。**`supports` / `invoke` 不必手动实现**——用 `bindCapabilities` 从能力注册表自动绑定即可，适配器只需提供纯平台实现（`sendMessage` 与平台方法），避免维护一长串 capability 分发 if 链：
 
 ```ts
-import type { Bot, MessageInput, MessageTarget, SentMessage } from 'mioki'
+import type { Bot as MiokiBot } from 'mioki'
+import type { MessageInput, MessageTarget, SentMessage } from 'mioki'
 
-const bot: Bot = {
+export type MyBot = MiokiBot & {
+  // 平台特有的方法（sendApi、pickGroup 等）
+  sendApi<T>(action: string, params?: Record<string, unknown>): Promise<T>
+}
+
+// 尚未绑定能力分发的 MyBot
+export type MyBotBase = Omit<MyBot, 'supports' | 'invoke'>
+
+export const createMyBot = (...): MyBotBase => ({
   bot_id: '123456789',
   adapter: 'xxx',
   nickname: 'bot',
   online: true,
   connected_at: Date.now(),
 
-  // 发送消息
   async sendMessage(target: MessageTarget, message: MessageInput): Promise<SentMessage> {
     // 根据 target.type 调用平台 API
-  },
-
-  // 能力判断与调用
-  supports(capability) {
-    return SUPPORTED_CAPABILITIES.some((cap) => cap.token === capability.token)
-  },
-  async invoke(capability, input) {
-    // 分发到平台实现
   },
 
   // 逃生舱：任意平台 API
   as<T extends object = Record<string, unknown>>(): T {
     return this as unknown as T
   },
+})
+```
+
+在 `start` 中用 `bindCapabilities` 绑定，并配合 `registerCapability` 注册能力实现：
+
+```ts
+import { bindCapabilities } from 'mioki'
+
+async start(context: AdapterContext) {
+  const bot = bindCapabilities(createMyBot(...), context.getCapabilityRegistry())
+  context.registerBot(bot)
+  const target = { adapter: 'xxx', bot_id: bot.bot_id }
+  context.registerCapability(messageSend, target, async (req) => bot.sendMessage(req.target, req.message))
 }
 ```
+
+`bindCapabilities` 返回的对象自动具备 `supports(capability)` / `invoke(capability, input)`，插件侧通过 `bot.supports` / `bot.invoke` 调用即可，无需关心平台差异。
 
 ## 事件与路由 {#events-and-routes}
 
@@ -138,25 +154,15 @@ const bot: Bot = {
 - 语义路由：`message`、`message.group`、`notice.group.increase`、`request.friend` 等
 - 适配器作用域路由：`<adapter>:<语义路由>`，如 `onebotv11:message.group`
 
-事件对象同时携带这两类路由，插件既可跨平台监听（`message`），也可指定平台监听（`onebotv11:message`）。构造路由的参考实现：
+事件对象同时携带这两类路由，插件既可跨平台监听（`message`），也可指定平台监听（`onebotv11:message`）。直接复用内核导出的 `buildRoutes` 构造：
 
 ```ts
-const buildRoutes = (adapter: string, ...parts: (string | undefined | null)[]): string[] => {
-  const cleaned = parts.filter((p): p is string => typeof p === 'string' && p.length > 0)
-  const routes: string[] = []
-  const platformParts = [adapter, ...cleaned]
-  for (let length = platformParts.length; length > 0; length--) {
-    const [head, ...rest] = platformParts.slice(0, length)
-    routes.push(rest.length > 0 ? `${head}:${rest.join('.')}` : head)
-  }
-  for (let length = cleaned.length; length > 0; length--) {
-    routes.push(cleaned.slice(0, length).join('.'))
-  }
-  return Array.from(new Set(routes))
-}
+import { buildRoutes } from 'mioki'
+
+const routes = buildRoutes(adapter, 'message', data.message_type, data.sub_type)
 ```
 
-事件对象需包含 `kind`、`type`、`routes`、`identity`、`bot`、`self_id`、`raw` 等字段。参考内核 `MessageEvent` / `NoticeEvent` / `RequestEvent` / `MetaEvent` 接口。
+它会同时产出作用域路由（`xxx:message.group`）与语义路由（`message.group`）。事件对象需包含 `kind`、`type`、`routes`、`identity`、`bot`、`self_id`、`raw` 等字段。参考内核 `MessageEvent` / `NoticeEvent` / `RequestEvent` / `MetaEvent` 接口。
 
 ## 注册能力 {#capabilities}
 
@@ -174,7 +180,7 @@ context.registerCapability(
 )
 ```
 
-插件侧即可通过 `bot.supports(capability)` / `bot.invoke(capability, input)` 调用，无需关心平台差异。
+`registerCapability` 的 `target` 省略 `adapter` 时会自动回退到当前适配器名。插件侧即可通过 `bot.supports(capability)` / `bot.invoke(capability, input)` 调用，无需关心平台差异。
 
 ## 暴露平台类型 {#adapter-bot-map}
 
